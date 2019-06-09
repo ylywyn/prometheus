@@ -38,6 +38,7 @@ import (
 	tsdbLabels "github.com/prometheus/tsdb/labels"
 
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/insight"
 	"github.com/prometheus/prometheus/pkg/gate"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/textparse"
@@ -254,6 +255,11 @@ func (api *API) Register(r *route.Router) {
 	r.Put("/admin/tsdb/clean_tombstones", wrap(api.cleanTombstones))
 	r.Put("/admin/tsdb/snapshot", wrap(api.snapshot))
 
+	r.Get("/rpc_addr", wrap(api.rpcAddr))
+}
+
+func (api *API) rpcAddr(r *http.Request) apiFuncResult {
+	return apiFuncResult{insight.Config.RpcListenAddress, nil, nil, nil}
 }
 
 type queryData struct {
