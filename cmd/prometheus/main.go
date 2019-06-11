@@ -723,6 +723,30 @@ func main() {
 			},
 		)
 	}
+	{
+		cancel := make(chan struct{})
+		g.Add(
+			func() error {
+				<-reloadReady.C
+				app, err := fanoutStorage.Appender()
+				if err != nil {
+					level.Error(logger).Log("insight.RpcManagerRun err", err)
+					return err
+				}
+				if err := insight.RpcManagerRun(app); err != nil {
+					level.Error(logger).Log("insight.RpcManagerRun err", err)
+					return err
+				}
+				<-cancel
+				return nil
+			},
+			func(err error) {
+				insight.RpcManagerStop()
+				close(cancel)
+			},
+		)
+	}
+
 	if err := g.Run(); err != nil {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
