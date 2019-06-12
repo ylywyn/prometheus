@@ -12,9 +12,9 @@ import (
 
 type Manager struct {
 	sync.Mutex
-	stopped   bool
-	rpcServer *rpc.MetricsRpcServer
-	pool      *WorkerPool
+	stopped    bool
+	workerPool *WorkerPool
+	rpcServer  *rpc.MetricsRpcServer
 }
 
 func NewManager(addr string, appender storage.Appender) (*Manager, error) {
@@ -22,17 +22,18 @@ func NewManager(addr string, appender storage.Appender) (*Manager, error) {
 	pool := NewWorkerPool(runtime.NumCPU(), appender)
 
 	m := &Manager{
-		stopped:   true,
-		rpcServer: rpcServer,
-		pool:      pool,
+		stopped:    true,
+		rpcServer:  rpcServer,
+		workerPool: pool,
 	}
 	return m, nil
 }
 
 func (m *Manager) Start() error {
 	if m.stopped {
-		m.pool.Run()
-		if err := m.rpcServer.Run(m.pool.Write); err != nil {
+		m.stopped = false
+		m.workerPool.Run()
+		if err := m.rpcServer.Run(m.workerPool.Write); err != nil {
 			log.Errorf("run rpc server error:%s", err.Error())
 		}
 	}
@@ -44,11 +45,12 @@ func (m *Manager) Stop() {
 	defer m.Unlock()
 
 	if !m.stopped {
+		m.stopped = true
 		if m.rpcServer != nil {
 			m.rpcServer.Stop()
 		}
-		if m.pool != nil {
-			m.pool.Stop()
+		if m.workerPool != nil {
+			m.workerPool.Stop()
 		}
 	}
 }

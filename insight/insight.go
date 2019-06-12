@@ -17,6 +17,10 @@ type InsightConfig struct {
 	RpcListenAddress string
 }
 
+func SetLog(level string)  {
+	log.SetLog(level, "console", "")
+}
+
 func RpcManagerRun(appender storage.Appender) error {
 	var err error
 	manager, err = rpc.NewManager(Config.RpcListenAddress, appender)

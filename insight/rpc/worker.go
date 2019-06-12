@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"io"
 	"sync"
 	"time"
 
@@ -16,13 +17,14 @@ import (
 
 type Worker struct {
 	sync.Mutex
-	index      int
-	stopped    bool
-	series     map[string]*cacheEntry
-	appender   storage.Appender
-	metricChan chan []*metrics.Metric
+	index   int
+	stopped bool
 
 	seriesCache *SeriesCache
+	appender    storage.Appender
+	metricChan  chan []*metrics.Metric
+
+	pool *WorkerPool
 }
 
 func NewWorker(i int, appender storage.Appender) *Worker {
@@ -48,6 +50,8 @@ func (w *Worker) Run() {
 }
 
 func (w *Worker) Stop() {
+	log.Infof("worker %d Stop", w.index)
+
 	w.Lock()
 	defer w.Unlock()
 	if !w.stopped {
@@ -67,6 +71,8 @@ func (w *Worker) Storage(ms []*metrics.Metric) error {
 }
 
 func (w *Worker) run() {
+	log.Infof("worker %d run...", w.index)
+
 	t := time.NewTicker(time.Duration(48) * time.Hour)
 	defer t.Stop()
 
@@ -74,6 +80,7 @@ func (w *Worker) run() {
 		select {
 		case ms, ok := <-w.metricChan:
 			if !ok {
+				log.Infof("worker %d quit", w.index)
 				return
 			}
 
@@ -88,33 +95,34 @@ func (w *Worker) run() {
 }
 
 func (w *Worker) storage(ms []*metrics.Metric) error {
-	var err error
+	added := 0
+	seriesAdded := 0
+
 	for _, m := range ms {
 		ce, ok := w.seriesCache.get(m.MetricKey)
 		if ok {
-			switch err = w.appender.AddFast(ce.lset, ce.ref, m.Time, m.Value); err {
-			case nil:
-				continue
-			case storage.ErrNotFound:
-				ok = false
-			case storage.ErrOutOfOrderSample:
-				log.Warnf("Out of order sample, series:", m.MetricKey)
-				continue
-			case storage.ErrDuplicateSampleForTimestamp:
-				log.Warnf("Duplicate sample for timestamp, series:", m.MetricKey)
-				continue
-			case storage.ErrOutOfBounds:
-				log.Warnf("Out of bounds metric, series:", m.MetricKey)
-				continue
-			default:
-				log.Warnf("unexpected error, series: %s, err:%s", m.MetricKey, err.Error())
+			if err := w.appender.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
+				if err == storage.ErrNotFound {
+					ok = false
+				} else {
+					log.Errorf("appender.AddFast error:%s", err.Error())
+					continue
+				}
+			} else {
+				added ++
 				continue
 			}
 		}
 
 		if !ok {
 			p := textparse.NewPromParser(strconv.StrToBytes(m.MetricKey))
-			p.Next()
+			_, err := p.Next()
+			if err != nil {
+				if err != io.EOF {
+					log.Errorf("NewPromParser error:%s", err.Error())
+				}
+				continue
+			}
 
 			var lset labels.Labels
 			mets := p.Metric(&lset)
@@ -123,27 +131,21 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 				continue
 			}
 
-			var ref uint64
-			ref, err = w.appender.Add(lset, m.Time, m.Value)
-			switch err {
-			case nil:
-			case storage.ErrOutOfOrderSample:
-				log.Warnf("Out of order sample, series:", m.MetricKey)
-				continue
-			case storage.ErrDuplicateSampleForTimestamp:
-				log.Warnf("Duplicate sample for timestamp, series:", m.MetricKey)
-				continue
-			case storage.ErrOutOfBounds:
-				log.Warnf("Out of bounds metric, series:", m.MetricKey)
-				continue
-			default:
-				log.Warnf("unexpected error, series: %s, err:%s", m.MetricKey, err.Error())
+			ref, err := w.appender.Add(lset, m.Time, m.Value)
+			if err != nil {
+				log.Errorf("appender.Add error:%s", err.Error())
 				continue
 			}
 
+			added ++
+			seriesAdded ++
 			w.seriesCache.add(mets, ref, lset, hash)
 		}
 	}
 
+	metricsPool.Put(ms)
+	if added > 0 {
+		w.pool.AppenderCommit(added, seriesAdded)
+	}
 	return nil
 }

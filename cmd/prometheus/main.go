@@ -727,6 +727,9 @@ func main() {
 		cancel := make(chan struct{})
 		g.Add(
 			func() error {
+
+				insight.SetLog(cfg.promlogConfig.Level.String())
+
 				<-reloadReady.C
 				app, err := fanoutStorage.Appender()
 				if err != nil {
