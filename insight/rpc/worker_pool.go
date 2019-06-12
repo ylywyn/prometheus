@@ -26,15 +26,27 @@ var metricsPool = sync.Pool{
 	},
 }
 
+var statusMetrics = []*metrics.Metric{
+	&metrics.Metric{MetricKey: "rpcserver_metrics_commited{} -1"},
+	&metrics.Metric{MetricKey: "rpcserver_metrics_parsed{} -1"},
+	&metrics.Metric{MetricKey: "rpcserver_metrics_received{} -1"},
+}
+
+type Status struct {
+	MetricReceived uint64
+	MetricAdd      uint64
+	MetricParsed   uint64
+}
+
 type WorkerPool struct {
 	sync.Mutex
 	stopped  bool
 	parallel int
 	workers  []*Worker
 
-	seriesAdded uint64
-	commitChan  chan int
-	appender    storage.Appender
+	status     Status
+	commitChan chan int
+	appender   storage.Appender
 }
 
 func NewWorkerPool(parallel int, appender storage.Appender) *WorkerPool {
@@ -85,6 +97,8 @@ func (wp *WorkerPool) Stop() {
 
 //将hash索引相同的 metric打到相同的sender, 使每个worker缓存一部分merics
 func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
+	atomic.AddUint64(&wp.status.MetricReceived, uint64(len(ms.List)))
+
 	h := hashPool32.Get().(hash.Hash32)
 	defer hashPool32.Put(h)
 
@@ -134,7 +148,8 @@ func (wp *WorkerPool) AppenderCommit(added int, seriesAdded int) {
 		log.Warnf("AppenderCommit timeout")
 	}
 
-	atomic.AddUint64(&wp.seriesAdded, uint64(seriesAdded))
+	atomic.AddUint64(&wp.status.MetricAdd, uint64(added))
+	atomic.AddUint64(&wp.status.MetricParsed, uint64(seriesAdded))
 }
 
 //
@@ -143,7 +158,6 @@ func (wp *WorkerPool) commitLoop() {
 	t := time.NewTicker(3 * time.Second)
 	defer t.Stop()
 
-	var total uint64
 	addCount := 0
 	commit := func() {
 		addCount = 0
@@ -160,23 +174,44 @@ func (wp *WorkerPool) commitLoop() {
 				return
 			}
 
-			total += uint64(add)
 			addCount += add
 			if addCount >= 1024 {
 				commit()
 			}
 
 		case <-t.C:
+			//打印统计
+			loopCount ++
+			if loopCount >= 20 {
+				loopCount = 0
+				wp.reportStatus()
+			}
+
 			if addCount > 0 {
 				commit()
 			}
-
-			//打印统计
-			loopCount ++
-			if loopCount > 40 {
-				loopCount = 0
-				log.Debugf("parse seriesAdded:%d, total write:%d", atomic.LoadUint64(&wp.seriesAdded), total)
-			}
 		}
 	}
+}
+
+func (wp *WorkerPool) reportStatus() {
+	t := int64(time.Now().Unix() * 1000)
+	statusMetrics[0].Time = t
+	statusMetrics[0].Value = float64(atomic.LoadUint64(&wp.status.MetricAdd))
+
+	statusMetrics[1].Time = t
+	statusMetrics[1].Value = float64(atomic.LoadUint64(&wp.status.MetricParsed))
+
+	statusMetrics[2].Time = t
+	statusMetrics[2].Value = float64(atomic.LoadUint64(&wp.status.MetricReceived))
+
+	if err := wp.workers[0].storage(statusMetrics); err != nil {
+		log.Errorf("reportStatus err0r:%s", err.Error())
+	} else {
+		log.Debugf("parse seriesparsed:%f, total write:%f", statusMetrics[1].Value, statusMetrics[0].Value)
+	}
+
+	atomic.StoreUint64(&wp.status.MetricAdd, 0)
+	atomic.StoreUint64(&wp.status.MetricParsed, 0)
+	atomic.StoreUint64(&wp.status.MetricReceived, 0)
 }

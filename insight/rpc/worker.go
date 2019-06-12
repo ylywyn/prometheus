@@ -125,7 +125,7 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 			}
 
 			var lset labels.Labels
-			mets := p.Metric(&lset)
+			p.Metric(&lset)
 			hash := lset.Hash()
 			if lset == nil {
 				continue
@@ -139,7 +139,7 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 
 			added ++
 			seriesAdded ++
-			w.seriesCache.add(mets, ref, lset, hash)
+			w.seriesCache.add(m.MetricKey, ref, lset, hash)
 		}
 	}
 
