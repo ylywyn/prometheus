@@ -97,7 +97,7 @@ func (w *Worker) run() {
 func (w *Worker) storage(ms []*metrics.Metric) error {
 	added := 0
 	seriesAdded := 0
-
+	
 	for _, m := range ms {
 		ce, ok := w.seriesCache.get(m.MetricKey)
 		if ok {
