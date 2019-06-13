@@ -97,7 +97,7 @@ func (w *Worker) run() {
 func (w *Worker) storage(ms []*metrics.Metric) error {
 	added := 0
 	seriesAdded := 0
-	
+
 	for _, m := range ms {
 		ce, ok := w.seriesCache.get(m.MetricKey)
 		if ok {
@@ -143,7 +143,10 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 		}
 	}
 
-	metricsPool.Put(ms)
+	if len(ms) > 16 {
+		metricsPool.Put(ms[:0])
+	}
+
 	if added > 0 {
 		w.pool.AppenderCommit(added, seriesAdded)
 	}

@@ -27,9 +27,9 @@ var metricsPool = sync.Pool{
 }
 
 var statusMetrics = []*metrics.Metric{
-	&metrics.Metric{MetricKey: "rpcserver_metrics_commited{} -1"},
-	&metrics.Metric{MetricKey: "rpcserver_metrics_parsed{} -1"},
-	&metrics.Metric{MetricKey: "rpcserver_metrics_received{} -1"},
+	&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="commited"}0`},
+	&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="parsed"}0`},
+	&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="received"}0`},
 }
 
 type Status struct {
