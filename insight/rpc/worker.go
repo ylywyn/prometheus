@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -64,7 +65,7 @@ func (w *Worker) Storage(ms []*metrics.Metric) error {
 	select {
 	case w.metricChan <- ms:
 	default:
-		return errors.New("write to worker chan timeout!")
+		return errors.New("write to worker chan timeout")
 	}
 
 	return nil
@@ -97,7 +98,7 @@ func (w *Worker) run() {
 func (w *Worker) storage(ms []*metrics.Metric) error {
 	added := 0
 	seriesAdded := 0
-
+	var errRet  error
 	for _, m := range ms {
 		ce, ok := w.seriesCache.get(m.MetricKey)
 		if ok {
@@ -105,7 +106,8 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 				if err == storage.ErrNotFound {
 					ok = false
 				} else {
-					log.Errorf("appender.AddFast error:%s", err.Error())
+					//log.Errorf("appender.AddFast error:%s", err.Error())
+					errRet = fmt.Errorf("appender.AddFast: %s", err.Error())
 					continue
 				}
 			} else {
@@ -126,20 +128,20 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 
 			var lset labels.Labels
 			p.Metric(&lset)
-			hash := lset.Hash()
 			if lset == nil {
 				continue
 			}
 
 			ref, err := w.appender.Add(lset, m.Time, m.Value)
 			if err != nil {
-				log.Errorf("appender.Add error:%s", err.Error())
+				//log.Errorf("appender.Add error:%s", err.Error())
+				errRet = fmt.Errorf("appender.Add: %s", err.Error())
 				continue
 			}
 
 			added ++
 			seriesAdded ++
-			w.seriesCache.add(m.MetricKey, ref, lset, hash)
+			w.seriesCache.add(m.MetricKey, ref, lset)
 		}
 	}
 
@@ -150,5 +152,5 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 	if added > 0 {
 		w.pool.AppenderCommit(added, seriesAdded)
 	}
-	return nil
+	return errRet
 }

@@ -1,24 +1,15 @@
 package rpc
 
 import (
-	"hash"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/prometheus/storage"
-	"github.com/reusee/mmh3"
 
 	"auto-insight/common/log"
 	"auto-insight/common/rpc/gen-go/metrics"
-	"auto-insight/common/strconv"
 )
-
-var hashPool32 = sync.Pool{
-	New: func() interface{} {
-		return mmh3.New32()
-	},
-}
 
 var metricsPool = sync.Pool{
 	New: func() interface{} {
@@ -99,12 +90,9 @@ func (wp *WorkerPool) Stop() {
 func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 	atomic.AddUint64(&wp.status.MetricReceived, uint64(len(ms.List)))
 
-	h := hashPool32.Get().(hash.Hash32)
-	defer hashPool32.Put(h)
-
 	msArray := make([][]*metrics.Metric, wp.parallel)
 	for _, m := range ms.List {
-		i := wp.workerIndex(h, m.MetricKey)
+		i := wp.workerIndex(m.MetricKey)
 		if msArray[i] == nil {
 			msArray[i] = metricsPool.Get().([]*metrics.Metric)
 		}
@@ -127,17 +115,17 @@ func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 	return nil
 }
 
-//使用前16个字节，计算index
-func (wp *WorkerPool) workerIndex(h hash.Hash32, series string) int {
-	key := strconv.StrToBytes(series)
-	if len(key) > 16 {
-		key = key[:16]
+//使用前8个字节，计算index
+func (wp *WorkerPool) workerIndex(series string) int {
+	if len(series) > 8 {
+		series = series[:8]
 	}
 
-	h.Write(key)
-	ret := h.Sum32()
-	h.Reset()
-	return int(ret) % wp.parallel
+	i := 0
+	for _, b := range series {
+		i += int(b)
+	}
+	return i % wp.parallel
 }
 
 //统一批量Commit
@@ -145,7 +133,7 @@ func (wp *WorkerPool) AppenderCommit(added int, seriesAdded int) {
 	select {
 	case wp.commitChan <- added:
 	default:
-		log.Warnf("AppenderCommit timeout")
+		log.Errorf("AppenderCommit timeout")
 	}
 
 	atomic.AddUint64(&wp.status.MetricAdd, uint64(added))
