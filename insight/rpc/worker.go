@@ -73,8 +73,6 @@ func (w *Worker) Storage(ms []*metrics.Metric) error {
 }
 
 func (w *Worker) run() {
-	log.Infof("worker %d run...", w.index)
-
 	t := rand.Intn(1000 * 2)
 	log.Debugf("wait for: %d ms", t)
 	time.Sleep(time.Duration(t) * time.Millisecond)
@@ -86,10 +84,23 @@ func (w *Worker) run() {
 	tCommit := time.NewTicker(time.Duration(interval) * time.Second)
 	defer tCommit.Stop()
 
-	app, err := w.appender.Appender()
-	if err != nil {
-		log.Errorf("w.appender.Appender error:%s", err.Error())
-		panic(err)
+	errCount := 0
+	var err error
+	var app storage.Appender
+	for {
+		app, err = w.appender.Appender()
+		if err != nil {
+			log.Errorf("w.appender.Appender error:%s", err.Error())
+
+			errCount ++
+			if errCount >= 5 {
+				panic(err)
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		} else {
+			break
+		}
 	}
 
 	commit := func() {
@@ -111,6 +122,8 @@ func (w *Worker) run() {
 			panic(err)
 		}
 	}
+
+	log.Infof("worker %d run...", w.index)
 
 	for {
 		select {
@@ -184,7 +197,6 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 			w.seriesCache.add(m.MetricKey, ref, lset)
 		}
 	}
-
 
 	metricsPool.Put(ms[:0])
 
