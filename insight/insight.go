@@ -2,7 +2,6 @@ package insight
 
 import (
 	"github.com/prometheus/prometheus/insight/rpc"
-	"github.com/prometheus/prometheus/storage"
 
 	"auto-insight/common/log"
 )
@@ -21,7 +20,7 @@ func SetLog(level string)  {
 	log.SetLog(level, "console", "")
 }
 
-func RpcManagerRun(appender storage.Appender) error {
+func RpcManagerRun(appender rpc.Appendable) error {
 	var err error
 	manager, err = rpc.NewManager(Config.RpcListenAddress, appender)
 	if err != nil {

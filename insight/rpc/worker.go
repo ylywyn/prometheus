@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -22,18 +23,18 @@ type Worker struct {
 	stopped bool
 
 	seriesCache *SeriesCache
-	appender    storage.Appender
+	appender    Appendable
 	metricChan  chan []*metrics.Metric
 
 	pool *WorkerPool
 }
 
-func NewWorker(i int, appender storage.Appender) *Worker {
+func NewWorker(i int, appender Appendable) *Worker {
 	w := &Worker{
 		index:      i,
 		stopped:    true,
 		appender:   appender,
-		metricChan: make(chan []*metrics.Metric, 256),
+		metricChan: make(chan []*metrics.Metric, 512),
 	}
 
 	w.seriesCache = NewSeriesCache()
@@ -74,8 +75,42 @@ func (w *Worker) Storage(ms []*metrics.Metric) error {
 func (w *Worker) run() {
 	log.Infof("worker %d run...", w.index)
 
-	t := time.NewTicker(time.Duration(48) * time.Hour)
-	defer t.Stop()
+	t := rand.Intn(1000 * 2)
+	log.Debugf("wait for: %d ms", t)
+	time.Sleep(time.Duration(t) * time.Millisecond)
+
+	tClean := time.NewTicker(time.Duration(48) * time.Hour)
+	defer tClean.Stop()
+
+	interval := 3
+	tCommit := time.NewTicker(time.Duration(interval) * time.Second)
+	defer tCommit.Stop()
+
+	app, err := w.appender.Appender()
+	if err != nil {
+		log.Errorf("w.appender.Appender error:%s", err.Error())
+		panic(err)
+	}
+
+	commit := func() {
+		//防止同一时间提交
+		if log.IsDebug() {
+			begin := time.Now().UnixNano()
+			defer func() {
+				log.Debugf("p.appender.Commit time: %d", (time.Now().UnixNano()-begin)/1e6)
+			}()
+		}
+
+		if err := app.Commit(); err != nil {
+			log.Errorf("wp.appender.Commit error: %s", err.Error())
+		}
+
+		app, err = w.appender.Appender()
+		if err != nil {
+			log.Errorf("w.appender.Appender error:%s", err.Error())
+			panic(err)
+		}
+	}
 
 	for {
 		select {
@@ -85,24 +120,29 @@ func (w *Worker) run() {
 				return
 			}
 
-			err := w.storage(ms)
+			err := w.storage(ms, app)
 			if err != nil {
 				log.Errorf("write to tsdb error:%s", err.Error())
 			}
-		case <-t.C:
+
+		case <-tCommit.C:
+			commit()
+
+		case <-tClean.C:
 			w.seriesCache.clear()
 		}
 	}
 }
 
-func (w *Worker) storage(ms []*metrics.Metric) error {
+func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 	added := 0
 	seriesAdded := 0
-	var errRet  error
+	var errRet error
+
 	for _, m := range ms {
 		ce, ok := w.seriesCache.get(m.MetricKey)
 		if ok {
-			if err := w.appender.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
+			if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 				if err == storage.ErrNotFound {
 					ok = false
 				} else {
@@ -132,7 +172,7 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 				continue
 			}
 
-			ref, err := w.appender.Add(lset, m.Time, m.Value)
+			ref, err := app.Add(lset, m.Time, m.Value)
 			if err != nil {
 				//log.Errorf("appender.Add error:%s", err.Error())
 				errRet = fmt.Errorf("appender.Add: %s", err.Error())
@@ -145,12 +185,12 @@ func (w *Worker) storage(ms []*metrics.Metric) error {
 		}
 	}
 
-	if len(ms) > 16 {
-		metricsPool.Put(ms[:0])
-	}
 
+	metricsPool.Put(ms[:0])
+
+	log.Debugf("worker: %d add:%d", w.index, added)
 	if added > 0 {
-		w.pool.AppenderCommit(added, seriesAdded)
+		w.pool.Status(added, seriesAdded)
 	}
 	return errRet
 }

@@ -731,12 +731,7 @@ func main() {
 				insight.SetLog(cfg.promlogConfig.Level.String())
 
 				<-reloadReady.C
-				app, err := fanoutStorage.Appender()
-				if err != nil {
-					level.Error(logger).Log("insight.RpcManagerRun err", err)
-					return err
-				}
-				if err := insight.RpcManagerRun(app); err != nil {
+				if err := insight.RpcManagerRun(fanoutStorage); err != nil {
 					level.Error(logger).Log("insight.RpcManagerRun err", err)
 					return err
 				}

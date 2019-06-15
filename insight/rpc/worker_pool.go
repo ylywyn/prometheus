@@ -5,22 +5,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/prometheus/prometheus/storage"
-
 	"auto-insight/common/log"
 	"auto-insight/common/rpc/gen-go/metrics"
 )
 
+const metricsCount = 64
+
 var metricsPool = sync.Pool{
 	New: func() interface{} {
-		return make([]*metrics.Metric, 0, 32)
+		return make([]*metrics.Metric, 0, metricsCount)
 	},
-}
-
-var statusMetrics = []*metrics.Metric{
-	&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="commited"}0`},
-	&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="parsed"}0`},
-	&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="received"}0`},
 }
 
 type Status struct {
@@ -34,19 +28,17 @@ type WorkerPool struct {
 	stopped  bool
 	parallel int
 	workers  []*Worker
+	stopChan chan struct{}
 
-	status     Status
-	commitChan chan int
-	appender   storage.Appender
+	status   Status
 }
 
-func NewWorkerPool(parallel int, appender storage.Appender) *WorkerPool {
+func NewWorkerPool(parallel int, appender Appendable) *WorkerPool {
 	p := &WorkerPool{
-		stopped:    true,
-		parallel:   parallel,
-		workers:    make([]*Worker, parallel),
-		appender:   appender,
-		commitChan: make(chan int, 512),
+		stopped:  true,
+		parallel: parallel,
+		workers:  make([]*Worker, parallel),
+		stopChan: make(chan struct{}),
 	}
 
 	for i := 0; i < parallel; i++ {
@@ -64,7 +56,7 @@ func (wp *WorkerPool) Run() {
 	defer wp.Unlock()
 
 	wp.stopped = false
-	go wp.commitLoop()
+	go wp.reportLoop()
 
 	for i := 0; i < wp.parallel; i++ {
 		wp.workers[i].Run()
@@ -79,10 +71,10 @@ func (wp *WorkerPool) Stop() {
 
 	if !wp.stopped {
 		wp.stopped = true
+		close(wp.stopChan)
 		for i := 0; i < wp.parallel; i++ {
 			wp.workers[i].Stop()
 		}
-		close(wp.commitChan)
 	}
 }
 
@@ -97,7 +89,7 @@ func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 			msArray[i] = metricsPool.Get().([]*metrics.Metric)
 		}
 		msArray[i] = append(msArray[i], m)
-		if len(msArray[i]) >= 32 {
+		if len(msArray[i]) >= metricsCount {
 			if err := wp.workers[i].Storage(msArray[i]); err != nil {
 				log.Errorf("worker storage error:%s", err.Error())
 			}
@@ -117,72 +109,44 @@ func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 
 //使用前8个字节，计算index
 func (wp *WorkerPool) workerIndex(series string) int {
-	if len(series) > 8 {
-		series = series[:8]
+	i := 0
+	l := len(series)
+	for j := 0; j < l; j += 2 {
+		i += int(series[j])
 	}
 
-	i := 0
-	for _, b := range series {
-		i += int(b)
-	}
 	return i % wp.parallel
 }
 
 //统一批量Commit
-func (wp *WorkerPool) AppenderCommit(added int, seriesAdded int) {
-	select {
-	case wp.commitChan <- added:
-	default:
-		log.Errorf("AppenderCommit timeout")
-	}
-
+func (wp *WorkerPool) Status(added int, seriesAdded int) {
 	atomic.AddUint64(&wp.status.MetricAdd, uint64(added))
 	atomic.AddUint64(&wp.status.MetricParsed, uint64(seriesAdded))
 }
 
 //
-func (wp *WorkerPool) commitLoop() {
-	loopCount := 0
-	t := time.NewTicker(3 * time.Second)
+func (wp *WorkerPool) reportLoop() {
+	t := time.NewTicker(time.Minute)
 	defer t.Stop()
-
-	addCount := 0
-	commit := func() {
-		addCount = 0
-		if err := wp.appender.Commit(); err != nil {
-			log.Errorf("wp.appender.Commit error: %s", err.Error())
-		}
-	}
 
 	for {
 		select {
-		case add, ok := <-wp.commitChan:
-			if !ok {
-				log.Debug("commitLoop quit")
-				return
-			}
-
-			addCount += add
-			if addCount >= 1024 {
-				commit()
-			}
-
 		case <-t.C:
 			//打印统计
-			loopCount ++
-			if loopCount >= 20 {
-				loopCount = 0
-				wp.reportStatus()
-			}
-
-			if addCount > 0 {
-				commit()
-			}
+			wp.reportStatus()
+		case <-wp.stopChan:
+			return
 		}
 	}
 }
 
 func (wp *WorkerPool) reportStatus() {
+	var statusMetrics = []*metrics.Metric{
+		&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="commited"}0`},
+		&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="parsed"}0`},
+		&metrics.Metric{MetricKey: `prometheus_rpc_metrics{type="received"}0`},
+	}
+
 	t := int64(time.Now().Unix() * 1000)
 	statusMetrics[0].Time = t
 	statusMetrics[0].Value = float64(atomic.LoadUint64(&wp.status.MetricAdd))
@@ -193,13 +157,10 @@ func (wp *WorkerPool) reportStatus() {
 	statusMetrics[2].Time = t
 	statusMetrics[2].Value = float64(atomic.LoadUint64(&wp.status.MetricReceived))
 
-	if err := wp.workers[0].storage(statusMetrics); err != nil {
+	if err := wp.workers[0].Storage(statusMetrics); err != nil {
 		log.Errorf("reportStatus err0r:%s", err.Error())
 	} else {
-		log.Debugf("parse seriesparsed:%f, total write:%f", statusMetrics[1].Value, statusMetrics[0].Value)
+		log.Debugf("parse seriesparsed:%f, total write:%f, received:%f",
+			statusMetrics[1].Value, statusMetrics[0].Value, statusMetrics[2].Value, )
 	}
-
-	atomic.StoreUint64(&wp.status.MetricAdd, 0)
-	atomic.StoreUint64(&wp.status.MetricParsed, 0)
-	atomic.StoreUint64(&wp.status.MetricReceived, 0)
 }

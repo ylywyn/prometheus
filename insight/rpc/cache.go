@@ -36,5 +36,5 @@ func (c *SeriesCache) add(met string, ref uint64, lset labels.Labels) {
 }
 
 func (c *SeriesCache) clear() {
-	c.series = make(map[string]*cacheEntry, 102400)
+	c.series = make(map[string]*cacheEntry, 204800)
 }

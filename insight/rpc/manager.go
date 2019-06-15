@@ -10,6 +10,10 @@ import (
 	"auto-insight/common/rpc"
 )
 
+type Appendable interface {
+	Appender() (storage.Appender, error)
+}
+
 type Manager struct {
 	sync.Mutex
 	stopped    bool
@@ -17,7 +21,7 @@ type Manager struct {
 	rpcServer  *rpc.MetricsRpcServer
 }
 
-func NewManager(addr string, appender storage.Appender) (*Manager, error) {
+func NewManager(addr string, appender Appendable) (*Manager, error) {
 	rpcServer := rpc.NewMetricsRpcServer(addr)
 	pool := NewWorkerPool(runtime.NumCPU(), appender)
 
