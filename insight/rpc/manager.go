@@ -62,6 +62,8 @@ func (m *Manager) Start() error {
 }
 
 func (m *Manager) Stop() {
+	log.Info("rpc manager will stop")
+
 	m.Lock()
 	defer m.Unlock()
 
@@ -78,6 +80,8 @@ func (m *Manager) Stop() {
 			m.rpcClient.Stop()
 		}
 	}
+
+	log.Info("rpc manager stop!!!")
 }
 
 func (m *Manager) WriteToRemote(ms *metrics.Metrics) {

@@ -1353,6 +1353,17 @@ func (sl *scrapeLoop) addReportSample(app storage.Appender, s string, t int64, v
 		default:
 			return err
 		}
+
+		ms := make([]*metrics.Metric, 0, 1)
+		m := &metrics.Metric{
+			Time:      t,
+			Value:     v,
+			MetricKey: ce.key,
+		}
+		ms = append(ms, m)
+		if insight.Manager.SendRemote() {
+			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
+		}
 	}
 	lset := labels.Labels{
 		// The constants are suffixed with the invalid \xff unicode rune to avoid collisions

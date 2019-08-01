@@ -738,6 +738,7 @@ func main() {
 					level.Error(logger).Log("insight.RpcManagerRun err", err)
 					return err
 				}
+				level.Info(logger).Log("msg", "rpc manager stopped")
 				<-cancel
 				return nil
 			},
