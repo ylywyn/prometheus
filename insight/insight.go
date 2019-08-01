@@ -9,25 +9,26 @@ import (
 var (
 	Config InsightConfig
 
-	manager *rpc.Manager
+	Manager *rpc.Manager
 )
 
 type InsightConfig struct {
-	RpcListenAddress string
+	RpcListenAddr       string
+	RemoteRpcServerAddr string
 }
 
-func SetLog(level string)  {
+func SetLog(level string) {
 	log.SetLog(level, "console", "")
 }
 
 func RpcManagerRun(appender rpc.Appendable) error {
 	var err error
-	manager, err = rpc.NewManager(Config.RpcListenAddress, appender)
+	Manager, err = rpc.NewManager(Config.RpcListenAddr, Config.RemoteRpcServerAddr, appender)
 	if err != nil {
 		log.Errorf("NewRpcManager error: %s", err.Error())
 		return err
 	}
-	if err = manager.Start(); err != nil {
+	if err = Manager.Start(); err != nil {
 		log.Errorf("RpcManagerStart error: %s", err.Error())
 		return err
 	}
@@ -35,7 +36,7 @@ func RpcManagerRun(appender rpc.Appendable) error {
 }
 
 func RpcManagerStop() {
-	if manager != nil {
-		manager.Stop()
+	if Manager != nil {
+		Manager.Stop()
 	}
 }

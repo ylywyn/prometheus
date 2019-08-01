@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 	"unsafe"
@@ -44,6 +45,9 @@ import (
 	"github.com/prometheus/prometheus/pkg/timestamp"
 	"github.com/prometheus/prometheus/pkg/value"
 	"github.com/prometheus/prometheus/storage"
+
+	"auto-insight/common/rpc/gen-go/metrics"
+	"github.com/prometheus/prometheus/insight"
 )
 
 var (
@@ -593,6 +597,7 @@ type cacheEntry struct {
 	lastIter uint64
 	hash     uint64
 	lset     labels.Labels
+	key      string
 }
 
 type scrapeLoop struct {
@@ -612,6 +617,8 @@ type scrapeLoop struct {
 	scrapeCtx context.Context
 	cancel    func()
 	stopped   chan struct{}
+
+	lastScrapeCount int
 }
 
 // scrapeCache tracks mappings of exposed metric strings to label sets and
@@ -721,11 +728,14 @@ func (c *scrapeCache) get(met string) (*cacheEntry, bool) {
 	return e, true
 }
 
-func (c *scrapeCache) addRef(met string, ref uint64, lset labels.Labels, hash uint64) {
+func (c *scrapeCache) addRef(met string, ref uint64, lset labels.Labels, hash uint64) *cacheEntry {
 	if ref == 0 {
-		return
+		return nil
 	}
-	c.series[met] = &cacheEntry{ref: ref, lastIter: c.iter, lset: lset, hash: hash}
+	ce := &cacheEntry{ref: ref, lastIter: c.iter, lset: lset, hash: hash}
+	ce.key = labelsKey(lset)
+	c.series[met] = ce
+	return ce
 }
 
 func (c *scrapeCache) addDropped(met string) {
@@ -1056,6 +1066,21 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 	)
 	var sampleLimitErr error
 
+	//for send to remote
+	count := sl.lastScrapeCount
+	if count == 0 {
+		count = 256
+	}
+	ms := make([]*metrics.Metric, 0, count)
+	addFun := func(key string, t int64, v float64) {
+		m := &metrics.Metric{
+			Time:      t,
+			Value:     v,
+			MetricKey: key,
+		}
+		ms = append(ms, m)
+	}
+
 loop:
 	for {
 		var et textparse.Entry
@@ -1177,10 +1202,14 @@ loop:
 				// Bypass staleness logic if there is an explicit timestamp.
 				sl.cache.trackStaleness(hash, lset)
 			}
-			sl.cache.addRef(mets, ref, lset, hash)
+			ce = sl.cache.addRef(mets, ref, lset, hash)
 			seriesAdded++
 		}
 		added++
+
+		if insight.Manager.SendRemote() && ce != nil {
+			addFun(ce.key, t, v)
+		}
 	}
 	if sampleLimitErr != nil {
 		if err == nil {
@@ -1217,6 +1246,11 @@ loop:
 	}
 	if err := app.Commit(); err != nil {
 		return total, added, seriesAdded, err
+	}
+
+	if insight.Manager.SendRemote() {
+		insight.Manager.WriteToRemote(&metrics.Metrics{ms})
+		sl.lastScrapeCount = total
 	}
 
 	// Only perform cache cleaning if the scrape was not empty.
@@ -1340,4 +1374,26 @@ func (sl *scrapeLoop) addReportSample(app storage.Appender, s string, t int64, v
 	default:
 		return err
 	}
+}
+
+func labelsKey(lset labels.Labels) string {
+	if len(lset) == 1 {
+		return lset[0].Name + " 0"
+	}
+
+	var b bytes.Buffer
+	b.WriteString(lset[0].Value)
+	b.WriteByte('{')
+	for i, l := range lset[1:] {
+		if i > 0 {
+			b.WriteByte(',')
+			b.WriteByte(' ')
+		}
+		b.WriteString(l.Name)
+		b.WriteByte('=')
+		b.WriteString(strconv.Quote(l.Value))
+	}
+
+	b.WriteString("} 0")
+	return b.String()
 }

@@ -140,7 +140,10 @@ func main() {
 		Default("0.0.0.0:9090").StringVar(&cfg.web.ListenAddress)
 
 	a.Flag("insight.rpc-listen-address", "Address to listen on for RPC, API, and telemetry.").
-		Default("0.0.0.0:9099").StringVar(&insight.Config.RpcListenAddress)
+		Default("0.0.0.0:9099").StringVar(&insight.Config.RpcListenAddr)
+
+	a.Flag("insight.rpc-remote-address", "Address to remote prometheus rpc server, for sync all data to the server.").
+		Default("").StringVar(&insight.Config.RemoteRpcServerAddr)
 
 	a.Flag("web.read-timeout",
 		"Maximum duration before timing out read of the request, and closing idle connections.").

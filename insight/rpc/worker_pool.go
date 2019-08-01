@@ -30,7 +30,8 @@ type WorkerPool struct {
 	workers  []*Worker
 	stopChan chan struct{}
 
-	status   Status
+	status  Status
+	manager *Manager
 }
 
 func NewWorkerPool(parallel int, appender Appendable) *WorkerPool {
@@ -81,6 +82,9 @@ func (wp *WorkerPool) Stop() {
 //将hash索引相同的 metric打到相同的sender, 使每个worker缓存一部分merics
 func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 	atomic.AddUint64(&wp.status.MetricReceived, uint64(len(ms.List)))
+	if wp.manager.SendRemote() {
+		wp.manager.WriteToRemote(ms)
+	}
 
 	msArray := make([][]*metrics.Metric, wp.parallel)
 	for _, m := range ms.List {

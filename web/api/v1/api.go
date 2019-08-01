@@ -259,7 +259,7 @@ func (api *API) Register(r *route.Router) {
 }
 
 func (api *API) rpcAddr(r *http.Request) apiFuncResult {
-	return apiFuncResult{insight.Config.RpcListenAddress, nil, nil, nil}
+	return apiFuncResult{insight.Config.RpcListenAddr, nil, nil, nil}
 }
 
 type queryData struct {
