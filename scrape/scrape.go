@@ -1341,6 +1341,18 @@ func (sl *scrapeLoop) addReportSample(app storage.Appender, s string, t int64, v
 	ce, ok := sl.cache.get(s)
 	if ok {
 		err := app.AddFast(ce.lset, ce.ref, t, v)
+
+		ms := make([]*metrics.Metric, 0, 1)
+		m := &metrics.Metric{
+			Time:      t,
+			Value:     v,
+			MetricKey: ce.key,
+		}
+		ms = append(ms, m)
+		if insight.Manager.SendRemote() {
+			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
+		}
+
 		switch err {
 		case nil:
 			return nil
@@ -1352,17 +1364,6 @@ func (sl *scrapeLoop) addReportSample(app storage.Appender, s string, t int64, v
 			return nil
 		default:
 			return err
-		}
-
-		ms := make([]*metrics.Metric, 0, 1)
-		m := &metrics.Metric{
-			Time:      t,
-			Value:     v,
-			MetricKey: ce.key,
-		}
-		ms = append(ms, m)
-		if insight.Manager.SendRemote() {
-			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
 		}
 	}
 	lset := labels.Labels{
