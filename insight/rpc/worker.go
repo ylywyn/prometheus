@@ -77,7 +77,7 @@ func (w *Worker) run() {
 	log.Debugf("wait for: %d ms", t)
 	time.Sleep(time.Duration(t) * time.Millisecond)
 
-	tClean := time.NewTicker(time.Duration(48) * time.Hour)
+	tClean := time.NewTicker(time.Duration(24*5) * time.Hour)
 	defer tClean.Stop()
 
 	interval := 3
@@ -92,7 +92,7 @@ func (w *Worker) run() {
 		if err != nil {
 			log.Errorf("w.appender.Appender error:%s", err.Error())
 
-			errCount ++
+			errCount++
 			if errCount >= 5 {
 				panic(err)
 			}
@@ -164,7 +164,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 					continue
 				}
 			} else {
-				added ++
+				added++
 				continue
 			}
 		}
@@ -192,8 +192,8 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 				continue
 			}
 
-			added ++
-			seriesAdded ++
+			added++
+			seriesAdded++
 			w.seriesCache.add(m.MetricKey, ref, lset)
 		}
 	}
