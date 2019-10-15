@@ -21,9 +21,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/pkg/errors"
@@ -44,6 +46,10 @@ type Client struct {
 	url     *config_util.URL
 	client  *http.Client
 	timeout time.Duration
+	redisaddr        string
+	rediskey         string
+	redisswitcher    bool
+	redisreplica     string
 }
 
 // ClientConfig configures a Client.
@@ -51,6 +57,10 @@ type ClientConfig struct {
 	URL              *config_util.URL
 	Timeout          model.Duration
 	HTTPClientConfig config_util.HTTPClientConfig
+	RedisAddr        string
+	RedisKey         string
+	RedisSwitcher    bool
+	RedisReplica     string
 }
 
 // NewClient creates a new Client.
@@ -65,6 +75,10 @@ func NewClient(index int, conf *ClientConfig) (*Client, error) {
 		url:     conf.URL,
 		client:  httpClient,
 		timeout: time.Duration(conf.Timeout),
+		redisaddr:conf.RedisAddr,
+		rediskey:conf.RedisKey,
+		redisswitcher:conf.RedisSwitcher,
+                redisreplica:conf.RedisReplica,
 	}, nil
 }
 
@@ -72,9 +86,66 @@ type recoverableError struct {
 	error
 }
 
+func (c *Client) JudgeMaster() bool {
+	if c.redisaddr == "" || c.redisswitcher == false || c.rediskey == ""{
+		return true
+	}
+
+	if  c.redisswitcher == true {
+		con, err := redis.Dial("tcp", c.redisaddr)
+		if err != nil {
+                        fmt.Printf("redis.Dial %v \n", err.Error())
+			return true
+		}
+		defer con.Close()
+		_, err = con.Do("SELECT", 0)
+		if err != nil {
+			return true
+		}
+                fmt.Printf("SELECT \n")
+		rep, err:=strconv.Atoi(c.redisreplica)
+		if err != nil {
+			return true
+		}
+                fmt.Printf("strconv.Atoi rep %v \n", rep)
+		res, err := con.Do("SETNX", c.rediskey, rep)
+		if res != int64(1) {
+                        if err != nil {
+                             fmt.Printf("setnx %v \n", err.Error())
+                        }
+			replica, err := redis.String(con.Do("GET", c.rediskey))
+			if err != nil {
+                             fmt.Printf("GET %v \n", err.Error())
+		             return true
+			}
+                        fmt.Printf("replica %v\n", replica)
+			if replica == c.redisreplica {
+				_, err = con.Do("EXPIRE", c.rediskey, 600)
+                                if err != nil {
+                                    fmt.Printf("expire %v \n", err.Error())
+                                }
+				return true
+			}else {
+				return false
+			}
+		}else{
+                        _, err = con.Do("EXPIRE", c.rediskey, 600)
+                        if err != nil {
+                            fmt.Printf("else expire %v \n", err.Error())
+                        }
+			return true
+		}
+	}
+	return false
+}
+
 // Store sends a batch of samples to the HTTP endpoint, the request is the proto marshalled
 // and encoded bytes from codec.go.
 func (c *Client) Store(ctx context.Context, req []byte) error {
+        ok := c.JudgeMaster()
+	if !ok {
+		return nil
+	}
 	httpReq, err := http.NewRequest("POST", c.url.String(), bytes.NewReader(req))
 	if err != nil {
 		// Errors from NewRequest are from unparsable URLs, so are not

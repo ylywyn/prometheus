@@ -9,11 +9,13 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.6.0 // indirect
 	github.com/Azure/azure-sdk-for-go v23.2.0+incompatible
 	github.com/Azure/go-autorest v11.2.8+incompatible
+	github.com/Bowery/prompt v0.0.0-20190916142128-fa8279994f75 // indirect
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.23.12
 	github.com/cespare/xxhash v1.1.0
+	github.com/dchest/safefile v0.0.0-20151022103144-855e8d98f185 // indirect
 	github.com/dgryski/go-sip13 v0.0.0-20190329191031-25c5027a8c7b
 	github.com/edsrzf/mmap-go v1.0.0
 	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
@@ -28,6 +30,7 @@ require (
 	github.com/golang/snappy v0.0.1
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/pprof v0.0.0-20190723021845-34ac40c74b70
+	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf // indirect
 	github.com/googleapis/gnostic v0.3.0 // indirect
 	github.com/gophercloud/gophercloud v0.3.0
 	github.com/grpc-ecosystem/grpc-gateway v1.9.5
@@ -41,6 +44,7 @@ require (
 	github.com/influxdata/influxdb v1.7.7
 	github.com/jpillora/backoff v0.0.0-20180909062703-3050d21c67d7 // indirect
 	github.com/json-iterator/go v1.1.7
+	github.com/kardianos/govendor v1.0.9 // indirect
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/miekg/dns v1.1.15
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f

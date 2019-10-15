@@ -584,6 +584,10 @@ type RemoteWriteConfig struct {
 	URL                 *config_util.URL  `yaml:"url"`
 	RemoteTimeout       model.Duration    `yaml:"remote_timeout,omitempty"`
 	WriteRelabelConfigs []*relabel.Config `yaml:"write_relabel_configs,omitempty"`
+        RedisAddr     string           `yaml:"redisaddr,omitempty"`
+	RedisKey      string           `yaml:"rediskey,omitempty"`
+	RedisSwitcher bool             `yaml:"redisswitcher,omitempty"`
+	RedisReplica  string           `yaml:"redisreplica,omitempty"`
 
 	// We cannot do proper Go type embedding below as the parser will then parse
 	// values arbitrarily into the overflow maps of further-down types.
@@ -642,6 +646,10 @@ type RemoteReadConfig struct {
 	URL           *config_util.URL `yaml:"url"`
 	RemoteTimeout model.Duration   `yaml:"remote_timeout,omitempty"`
 	ReadRecent    bool             `yaml:"read_recent,omitempty"`
+	// RedisAddr     string           `yaml:"redisaddr,omitempty"`
+	// RedisKey      string           `yaml:"rediskey,omitempty"`
+	// RedisSwitcher bool             `yaml:"redisswitcher,omitempty"`
+	// RedisReplica  string           `yaml:"redisreplica,omitempty"`
 	// We cannot do proper Go type embedding below as the parser will then parse
 	// values arbitrarily into the overflow maps of further-down types.
 	HTTPClientConfig config_util.HTTPClientConfig `yaml:",inline"`
