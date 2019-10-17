@@ -102,12 +102,10 @@ func (c *Client) JudgeMaster() bool {
 		if err != nil {
 			return true
 		}
-                fmt.Printf("SELECT \n")
 		rep, err:=strconv.Atoi(c.redisreplica)
 		if err != nil {
 			return true
 		}
-                fmt.Printf("strconv.Atoi rep %v \n", rep)
 		res, err := con.Do("SETNX", c.rediskey, rep)
 		if res != int64(1) {
                         if err != nil {
@@ -118,7 +116,6 @@ func (c *Client) JudgeMaster() bool {
                              fmt.Printf("GET %v \n", err.Error())
 		             return true
 			}
-                        fmt.Printf("replica %v\n", replica)
 			if replica == c.redisreplica {
 				_, err = con.Do("EXPIRE", c.rediskey, 600)
                                 if err != nil {
