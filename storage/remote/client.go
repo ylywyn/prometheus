@@ -21,18 +21,16 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-        "strconv"
-         
-        "github.com/garyburd/redigo/redis"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/pkg/errors"
 	config_util "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
-
 	"github.com/prometheus/prometheus/prompb"
 )
 
@@ -42,14 +40,11 @@ var userAgent = fmt.Sprintf("Prometheus/%s", version.Version)
 
 // Client allows reading and writing from/to a remote HTTP endpoint.
 type Client struct {
-	index   int // Used to differentiate clients in metrics.
-	url     *config_util.URL
-	client  *http.Client
-	timeout time.Duration
-        redisaddr        string
-	rediskey         string
-	redisswitcher    bool
-	redisreplica     string
+	index         int // Used to differentiate clients in metrics.
+	url           *config_util.URL
+	client        *http.Client
+	timeout       time.Duration
+	switcher     *Switcher
 }
 
 // ClientConfig configures a Client.
@@ -57,8 +52,8 @@ type ClientConfig struct {
 	URL              *config_util.URL
 	Timeout          model.Duration
 	HTTPClientConfig config_util.HTTPClientConfig
-        RedisAddr        string
-	RedisKey         string
+    RedisAddr        string
+	PrometheusId     string
 	RedisSwitcher    bool
 	RedisReplica     string
 }
@@ -70,15 +65,16 @@ func NewClient(index int, conf *ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	switcher, err := NewSwitcher(conf.RedisAddr, conf.PrometheusId, conf.RedisReplica, conf.RedisSwitcher)
+	if err != nil {
+		os.Exit(1)
+	}
 	return &Client{
-		index:   index,
-		url:     conf.URL,
-		client:  httpClient,
-		timeout: time.Duration(conf.Timeout),
-                redisaddr:conf.RedisAddr,
-		rediskey:conf.RedisKey,
-		redisswitcher:conf.RedisSwitcher,
-                redisreplica:conf.RedisReplica,
+		index:         index,
+		url:           conf.URL,
+		client:        httpClient,
+		timeout:       time.Duration(conf.Timeout),
+		switcher:      switcher,
 	}, nil
 }
 
@@ -86,60 +82,10 @@ type recoverableError struct {
 	error
 }
 
-func (c *Client) JudgeMaster() bool {
-	if c.redisaddr == "" || c.redisswitcher == false || c.rediskey == ""{
-		return true
-	}
-
-	if  c.redisswitcher == true {
-		con, err := redis.Dial("tcp", c.redisaddr)
-		if err != nil {
-                        fmt.Printf("redis.Dial %v \n", err.Error())
-			return true
-		}
-		defer con.Close()
-		_, err = con.Do("SELECT", 0)
-		if err != nil {
-			return true
-		}
-		rep, err:=strconv.Atoi(c.redisreplica)
-		if err != nil {
-			return true
-		}
-		res, err := con.Do("SETNX", c.rediskey, rep)
-		if res != int64(1) {
-                        if err != nil {
-                             fmt.Printf("setnx %v \n", err.Error())
-                        }
-			replica, err := redis.String(con.Do("GET", c.rediskey))
-			if err != nil {
-                             fmt.Printf("GET %v \n", err.Error())
-		             return true
-			}
-			if replica == c.redisreplica {
-				_, err = con.Do("EXPIRE", c.rediskey, 600)
-                                if err != nil {
-                                    fmt.Printf("expire %v \n", err.Error())
-                                }
-				return true
-			}else {
-				return false
-			}
-		}else{
-                        _, err = con.Do("EXPIRE", c.rediskey, 600)
-                        if err != nil {
-                            fmt.Printf("else expire %v \n", err.Error())
-                        }
-			return true
-		}
-	}
-	return false
-}
-
 // Store sends a batch of samples to the HTTP endpoint, the request is the proto marshalled
 // and encoded bytes from codec.go.
 func (c *Client) Store(ctx context.Context, req []byte) error {
-        ok := c.JudgeMaster()
+        ok := c.switcher.get()
 	if !ok {
 		return nil
 	}
@@ -251,3 +197,5 @@ func (c *Client) Read(ctx context.Context, query *prompb.Query) (*prompb.QueryRe
 
 	return resp.Results[0], nil
 }
+
+
