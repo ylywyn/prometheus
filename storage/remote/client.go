@@ -21,7 +21,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -67,7 +66,7 @@ func NewClient(index int, conf *ClientConfig) (*Client, error) {
 
 	switcher, err := NewSwitcher(conf.RedisAddr, conf.PrometheusId, conf.RedisReplica, conf.RedisSwitcher)
 	if err != nil {
-		os.Exit(1)
+		panic(err)
 	}
 	return &Client{
 		index:         index,

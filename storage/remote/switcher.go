@@ -77,13 +77,12 @@ func (s *Switcher) judgeMaster() error {
 		s.replicaWrite = true
 		return nil
 	}
-	var err error
-	s.redisPool, err = redisPoolInit(s.redisAddr)
+	redisPool, err := redisPoolInit(s.redisAddr)
 	if err != nil {
 		log.Errorf("redis.Dial %v \n", err.Error())
 		return err
 	}
-	log.Debugf("redisPoolInit %v \n", s.redisAddr)
+        s.redisPool = redisPool
 	first := true
 	go func() {
 		f := func() {
@@ -143,16 +142,16 @@ func redisPoolInit(connInfo string) (*RedisClientPool, error) {
 	redisPool := &RedisClientPool{
 		Name: "redis-client-pool",
 	}
-	err := redisPool.InitRedis(connInfo)
+	_ = redisPool.InitRedis(connInfo)
 
-	return redisPool, err
+	return redisPool, redisPool.Get().Err()
 }
 
 func (p *RedisClientPool) InitRedis(addr string) error {
 	dialFunc := func() (c redis.Conn, err error) {
 		c, err = redis.Dial("tcp", addr)
 		if err != nil {
-			return
+			return nil, err
 		}
 		_, err = c.Do("SELECT", 0)
 		if err != nil {
