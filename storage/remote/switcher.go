@@ -66,7 +66,7 @@ func NewSwitcher(redisAddr, prometheusId, redisReplica string, redisSwitcher boo
 }
 
 func (s *Switcher) doUpdate(conn redis.Conn) {
-	conn.Do("EXPIRE", s.prometheusId, 600)
+	conn.Do("EXPIRE", s.prometheusId, 150)
 	s.mtx.Lock()
 	s.replicaWrite = true
 	s.mtx.Unlock()
