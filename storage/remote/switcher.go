@@ -66,7 +66,7 @@ func NewSwitcher(redisAddr, prometheusId, redisReplica string, redisSwitcher boo
 }
 
 func (s *Switcher) doUpdate(conn redis.Conn) {
-	conn.Do("EXPIRE", s.prometheusId, 150)
+	conn.Do("EXPIRE", s.prometheusId, 45)
 	s.mtx.Lock()
 	s.replicaWrite = true
 	s.mtx.Unlock()
@@ -89,7 +89,7 @@ func (s *Switcher) judgeMaster() error {
 			if first {
 				first = false
 			} else {
-				time.Sleep(time.Second * 60)
+				time.Sleep(time.Second * 30)
 			}
 			conn := s.redisPool.Get()
 			if conn == nil {
