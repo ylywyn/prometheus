@@ -1,0 +1,75 @@
+{
+	"comment": "",
+	"ignore": "",
+	"package": [
+		{
+			"checksumSHA1": "sa8izIUd13RsQzjyU0CVWOC/KQc=",
+			"path": "auto-insight/common/container/list",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "6RtjMkrf6K0O0v6VNmCrafU12+g=",
+			"path": "auto-insight/common/log",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "lBkVUQgfhjzuSRseuGvakkw2VQg=",
+			"path": "auto-insight/common/rpc",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "6xCJKgR/4xiQx9r1ig1IKJjynbY=",
+			"path": "auto-insight/common/rpc/gen-go/metrics",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "E/5NruI1k5l/CjBv80lH2Q7kpyk=",
+			"path": "auto-insight/common/rpc/parser",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "0i8dgA8T9V6TzQvPFr4M8f7qHPQ=",
+			"path": "auto-insight/common/rpc/parser/expfmt",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "lZH+1r47jPNurm6/weLS4i3oLEo=",
+			"path": "auto-insight/common/strconv",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "gEOtyPsAyrbkLEc3F39vLmQhxog=",
+			"origin": "auto-insight/common/vendor/github.com/apache/thrift/lib/go/thrift",
+			"path": "github.com/apache/thrift/lib/go/thrift",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "OksAzF6VvpfTlte99lpVNV+iSnY=",
+			"origin": "auto-insight/common/vendor/github.com/astaxie/beego/logs",
+			"path": "github.com/astaxie/beego/logs",
+			"revision": "c83cd87c89797eb93ada545bad99c391c2625bd5",
+			"revisionTime": "2019-10-12T02:39:36Z"
+		},
+		{
+			"checksumSHA1": "CugKDIiTN7Xl2ID3yQ17ytRmNOY=",
+			"path": "github.com/garyburd/redigo/internal",
+			"revision": "569eae59ada904ea8db7a225c2b47165af08735a",
+			"revisionTime": "2018-04-04T16:07:26Z"
+		},
+		{
+			"checksumSHA1": "DsobywS3zeHUgxjSOCUt4SLS2ik=",
+			"path": "github.com/garyburd/redigo/redis",
+			"revision": "569eae59ada904ea8db7a225c2b47165af08735a",
+			"revisionTime": "2018-04-04T16:07:26Z"
+		}
+	],
+	"rootPath": "github.com/prometheus/prometheus"
+}

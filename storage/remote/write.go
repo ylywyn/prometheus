@@ -136,6 +136,10 @@ func (rws *WriteStorage) ApplyConfig(conf *config.Config) error {
 			URL:              rwConf.URL,
 			Timeout:          rwConf.RemoteTimeout,
 			HTTPClientConfig: rwConf.HTTPClientConfig,
+			RedisReplica:     rwConf.RedisReplica,
+			RedisSwitcher:    rwConf.RedisSwitcher,
+			PrometheusId:     rwConf.PrometheusId,
+			RedisAddr:        rwConf.RedisAddr,
 		})
 		if err != nil {
 			return err
