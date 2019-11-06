@@ -62,6 +62,14 @@ func (s *Sender) sendLoop() {
 	}
 	defer client.Close()
 
+	var hashClient *HashClient
+	if len(s.manager.HashAddr) > 0 {
+		hashClient, err = NewHashClient(s.manager, s.manager.HashAddr)
+		if err != nil {
+			log.Errorf("NewHashClient error :%s", err.Error())
+		}
+	}
+
 	log.Infof("rpc[%s] sender loop seq: %d is runing", s.addr, s.seq)
 
 	t := time.NewTicker(time.Duration(s.flushInterval) * time.Second)
@@ -87,6 +95,13 @@ func (s *Sender) sendLoop() {
 					s.buff = s.buff[:0]
 				}
 			}
+
+			if hashClient != nil {
+				if err := hashClient.Send(d); err != nil {
+					log.Errorf("hashClient send error :%s", err.Error())
+				}
+			}
+
 		case <-t.C:
 			if !s.stopped && len(s.buff) > 0 {
 				if err := client.Send(&metrics.Metrics{List: s.buff}); err != nil {

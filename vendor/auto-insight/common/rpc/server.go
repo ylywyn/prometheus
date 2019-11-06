@@ -4,8 +4,8 @@ import (
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/pkg/errors"
 
-	"auto-insight/common/rpc/gen-go/metrics"
 	"auto-insight/common/log"
+	"auto-insight/common/rpc/gen-go/metrics"
 )
 
 type MetricsRpcServer struct {
@@ -18,14 +18,14 @@ func NewMetricsRpcServer(addr string) *MetricsRpcServer {
 	return s
 }
 
-func (s *MetricsRpcServer) Run(f func(ms *metrics.Metrics) error) error {
+func (s *MetricsRpcServer) Run(handler MetricsTransferHandler) error {
 	transport, err := thrift.NewTServerSocket(s.addr)
 	if err != nil {
 		return errors.Wrapf(err, "NewTServerSocket")
 	}
 
-	handler := &MetricsTransferHandler{processor: f}
-	processor := metrics.NewMetricsTransferProcessor(handler)
+	//handler := &MetricsTransferHandler{processor: f}
+	processor := metrics.NewMetricsTransferProcessor(&handler)
 
 	transportFactory := thrift.NewTBufferedTransportFactory(8192)
 	protocolFactory := thrift.NewTCompactProtocolFactory()

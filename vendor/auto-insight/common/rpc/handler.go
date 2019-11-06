@@ -7,7 +7,8 @@ import (
 )
 
 type MetricsTransferHandler struct {
-	processor func(ms *metrics.Metrics) error
+	Processor               func(ms *metrics.Metrics) error
+	ProcessorWithDatasource func(ms *metrics.Metrics, ds string) error
 }
 
 // func (h *MetricsTransferHandler) Ping(ctx context.Context) (err error) {
@@ -21,5 +22,9 @@ type MetricsTransferHandler struct {
 // }
 
 func (h *MetricsTransferHandler) Transfer(ctx context.Context, ms *metrics.Metrics) (r int32, err error) {
-	return int32(len(ms.List)), h.processor(ms)
+	return int32(len(ms.List)), h.Processor(ms)
+}
+
+func (h *MetricsTransferHandler) TransferWithDatasource(ctx context.Context, ms *metrics.Metrics, ds string) (r int32, err error) {
+	return int32(len(ms.List)), h.ProcessorWithDatasource(ms, ds)
 }

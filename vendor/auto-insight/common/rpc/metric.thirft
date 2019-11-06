@@ -13,4 +13,5 @@ struct Metrics {
 
 service MetricsTransfer {
     i32 Transfer(1: Metrics ms)
+    i32 Transfer(1: Metrics ms,2:string datasource)
 }

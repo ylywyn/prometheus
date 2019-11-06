@@ -319,6 +319,10 @@ type MetricsTransfer interface {
   // Parameters:
   //  - Ms
   Transfer(ctx context.Context, ms *Metrics) (r int32, err error)
+  // Parameters:
+  //  - Ms
+  //  - Datasource
+  TransferWithDatasource(ctx context.Context, ms *Metrics, datasource string) (r int32, err error)
 }
 
 type MetricsTransferClient struct {
@@ -358,6 +362,20 @@ func (p *MetricsTransferClient) Transfer(ctx context.Context, ms *Metrics) (r in
   return _result2.GetSuccess(), nil
 }
 
+// Parameters:
+//  - Ms
+//  - Datasource
+func (p *MetricsTransferClient) TransferWithDatasource(ctx context.Context, ms *Metrics, datasource string) (r int32, err error) {
+  var _args3 MetricsTransferTransferWithDatasourceArgs
+  _args3.Ms = ms
+  _args3.Datasource = datasource
+  var _result4 MetricsTransferTransferWithDatasourceResult
+  if err = p.Client_().Call(ctx, "TransferWithDatasource", &_args3, &_result4); err != nil {
+    return
+  }
+  return _result4.GetSuccess(), nil
+}
+
 type MetricsTransferProcessor struct {
   processorMap map[string]thrift.TProcessorFunction
   handler MetricsTransfer
@@ -378,9 +396,10 @@ func (p *MetricsTransferProcessor) ProcessorMap() map[string]thrift.TProcessorFu
 
 func NewMetricsTransferProcessor(handler MetricsTransfer) *MetricsTransferProcessor {
 
-  self3 := &MetricsTransferProcessor{handler:handler, processorMap:make(map[string]thrift.TProcessorFunction)}
-  self3.processorMap["Transfer"] = &metricsTransferProcessorTransfer{handler:handler}
-return self3
+  self5 := &MetricsTransferProcessor{handler:handler, processorMap:make(map[string]thrift.TProcessorFunction)}
+  self5.processorMap["Transfer"] = &metricsTransferProcessorTransfer{handler:handler}
+  self5.processorMap["TransferWithDatasource"] = &metricsTransferProcessorTransferWithDatasource{handler:handler}
+return self5
 }
 
 func (p *MetricsTransferProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
@@ -391,12 +410,12 @@ func (p *MetricsTransferProcessor) Process(ctx context.Context, iprot, oprot thr
   }
   iprot.Skip(thrift.STRUCT)
   iprot.ReadMessageEnd()
-  x4 := thrift.NewTApplicationException(thrift.UNKNOWN_METHOD, "Unknown function " + name)
+  x6 := thrift.NewTApplicationException(thrift.UNKNOWN_METHOD, "Unknown function " + name)
   oprot.WriteMessageBegin(name, thrift.EXCEPTION, seqId)
-  x4.Write(oprot)
+  x6.Write(oprot)
   oprot.WriteMessageEnd()
   oprot.Flush(ctx)
-  return false, x4
+  return false, x6
 
 }
 
@@ -431,6 +450,54 @@ var retval int32
     result.Success = &retval
 }
   if err2 = oprot.WriteMessageBegin("Transfer", thrift.REPLY, seqId); err2 != nil {
+    err = err2
+  }
+  if err2 = result.Write(oprot); err == nil && err2 != nil {
+    err = err2
+  }
+  if err2 = oprot.WriteMessageEnd(); err == nil && err2 != nil {
+    err = err2
+  }
+  if err2 = oprot.Flush(ctx); err == nil && err2 != nil {
+    err = err2
+  }
+  if err != nil {
+    return
+  }
+  return true, err
+}
+
+type metricsTransferProcessorTransferWithDatasource struct {
+  handler MetricsTransfer
+}
+
+func (p *metricsTransferProcessorTransferWithDatasource) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+  args := MetricsTransferTransferWithDatasourceArgs{}
+  if err = args.Read(iprot); err != nil {
+    iprot.ReadMessageEnd()
+    x := thrift.NewTApplicationException(thrift.PROTOCOL_ERROR, err.Error())
+    oprot.WriteMessageBegin("TransferWithDatasource", thrift.EXCEPTION, seqId)
+    x.Write(oprot)
+    oprot.WriteMessageEnd()
+    oprot.Flush(ctx)
+    return false, err
+  }
+
+  iprot.ReadMessageEnd()
+  result := MetricsTransferTransferWithDatasourceResult{}
+var retval int32
+  var err2 error
+  if retval, err2 = p.handler.TransferWithDatasource(ctx, args.Ms, args.Datasource); err2 != nil {
+    x := thrift.NewTApplicationException(thrift.INTERNAL_ERROR, "Internal error processing TransferWithDatasource: " + err2.Error())
+    oprot.WriteMessageBegin("TransferWithDatasource", thrift.EXCEPTION, seqId)
+    x.Write(oprot)
+    oprot.WriteMessageEnd()
+    oprot.Flush(ctx)
+    return true, err2
+  } else {
+    result.Success = &retval
+}
+  if err2 = oprot.WriteMessageBegin("TransferWithDatasource", thrift.REPLY, seqId); err2 != nil {
     err = err2
   }
   if err2 = result.Write(oprot); err == nil && err2 != nil {
@@ -650,6 +717,243 @@ func (p *MetricsTransferTransferResult) String() string {
     return "<nil>"
   }
   return fmt.Sprintf("MetricsTransferTransferResult(%+v)", *p)
+}
+
+// Attributes:
+//  - Ms
+//  - Datasource
+type MetricsTransferTransferWithDatasourceArgs struct {
+  Ms *Metrics `thrift:"ms,1" db:"ms" json:"ms"`
+  Datasource string `thrift:"datasource,2" db:"datasource" json:"datasource"`
+}
+
+func NewMetricsTransferTransferWithDatasourceArgs() *MetricsTransferTransferWithDatasourceArgs {
+  return &MetricsTransferTransferWithDatasourceArgs{}
+}
+
+var MetricsTransferTransferWithDatasourceArgs_Ms_DEFAULT *Metrics
+func (p *MetricsTransferTransferWithDatasourceArgs) GetMs() *Metrics {
+  if !p.IsSetMs() {
+    return MetricsTransferTransferWithDatasourceArgs_Ms_DEFAULT
+  }
+return p.Ms
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs) GetDatasource() string {
+  return p.Datasource
+}
+func (p *MetricsTransferTransferWithDatasourceArgs) IsSetMs() bool {
+  return p.Ms != nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs) Read(iprot thrift.TProtocol) error {
+  if _, err := iprot.ReadStructBegin(); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
+  }
+
+
+  for {
+    _, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
+    if err != nil {
+      return thrift.PrependError(fmt.Sprintf("%T field %d read error: ", p, fieldId), err)
+    }
+    if fieldTypeId == thrift.STOP { break; }
+    switch fieldId {
+    case 1:
+      if fieldTypeId == thrift.STRUCT {
+        if err := p.ReadField1(iprot); err != nil {
+          return err
+        }
+      } else {
+        if err := iprot.Skip(fieldTypeId); err != nil {
+          return err
+        }
+      }
+    case 2:
+      if fieldTypeId == thrift.STRING {
+        if err := p.ReadField2(iprot); err != nil {
+          return err
+        }
+      } else {
+        if err := iprot.Skip(fieldTypeId); err != nil {
+          return err
+        }
+      }
+    default:
+      if err := iprot.Skip(fieldTypeId); err != nil {
+        return err
+      }
+    }
+    if err := iprot.ReadFieldEnd(); err != nil {
+      return err
+    }
+  }
+  if err := iprot.ReadStructEnd(); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+  }
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs)  ReadField1(iprot thrift.TProtocol) error {
+  p.Ms = &Metrics{
+  List: []*Metric{
+  },
+}
+  if err := p.Ms.Read(iprot); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T error reading struct: ", p.Ms), err)
+  }
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs)  ReadField2(iprot thrift.TProtocol) error {
+  if v, err := iprot.ReadString(); err != nil {
+  return thrift.PrependError("error reading field 2: ", err)
+} else {
+  p.Datasource = v
+}
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs) Write(oprot thrift.TProtocol) error {
+  if err := oprot.WriteStructBegin("TransferWithDatasource_args"); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err) }
+  if p != nil {
+    if err := p.writeField1(oprot); err != nil { return err }
+    if err := p.writeField2(oprot); err != nil { return err }
+  }
+  if err := oprot.WriteFieldStop(); err != nil {
+    return thrift.PrependError("write field stop error: ", err) }
+  if err := oprot.WriteStructEnd(); err != nil {
+    return thrift.PrependError("write struct stop error: ", err) }
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs) writeField1(oprot thrift.TProtocol) (err error) {
+  if err := oprot.WriteFieldBegin("ms", thrift.STRUCT, 1); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T write field begin error 1:ms: ", p), err) }
+  if err := p.Ms.Write(oprot); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T error writing struct: ", p.Ms), err)
+  }
+  if err := oprot.WriteFieldEnd(); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T write field end error 1:ms: ", p), err) }
+  return err
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs) writeField2(oprot thrift.TProtocol) (err error) {
+  if err := oprot.WriteFieldBegin("datasource", thrift.STRING, 2); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T write field begin error 2:datasource: ", p), err) }
+  if err := oprot.WriteString(string(p.Datasource)); err != nil {
+  return thrift.PrependError(fmt.Sprintf("%T.datasource (2) field write error: ", p), err) }
+  if err := oprot.WriteFieldEnd(); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T write field end error 2:datasource: ", p), err) }
+  return err
+}
+
+func (p *MetricsTransferTransferWithDatasourceArgs) String() string {
+  if p == nil {
+    return "<nil>"
+  }
+  return fmt.Sprintf("MetricsTransferTransferWithDatasourceArgs(%+v)", *p)
+}
+
+// Attributes:
+//  - Success
+type MetricsTransferTransferWithDatasourceResult struct {
+  Success *int32 `thrift:"success,0" db:"success" json:"success,omitempty"`
+}
+
+func NewMetricsTransferTransferWithDatasourceResult() *MetricsTransferTransferWithDatasourceResult {
+  return &MetricsTransferTransferWithDatasourceResult{}
+}
+
+var MetricsTransferTransferWithDatasourceResult_Success_DEFAULT int32
+func (p *MetricsTransferTransferWithDatasourceResult) GetSuccess() int32 {
+  if !p.IsSetSuccess() {
+    return MetricsTransferTransferWithDatasourceResult_Success_DEFAULT
+  }
+return *p.Success
+}
+func (p *MetricsTransferTransferWithDatasourceResult) IsSetSuccess() bool {
+  return p.Success != nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceResult) Read(iprot thrift.TProtocol) error {
+  if _, err := iprot.ReadStructBegin(); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T read error: ", p), err)
+  }
+
+
+  for {
+    _, fieldTypeId, fieldId, err := iprot.ReadFieldBegin()
+    if err != nil {
+      return thrift.PrependError(fmt.Sprintf("%T field %d read error: ", p, fieldId), err)
+    }
+    if fieldTypeId == thrift.STOP { break; }
+    switch fieldId {
+    case 0:
+      if fieldTypeId == thrift.I32 {
+        if err := p.ReadField0(iprot); err != nil {
+          return err
+        }
+      } else {
+        if err := iprot.Skip(fieldTypeId); err != nil {
+          return err
+        }
+      }
+    default:
+      if err := iprot.Skip(fieldTypeId); err != nil {
+        return err
+      }
+    }
+    if err := iprot.ReadFieldEnd(); err != nil {
+      return err
+    }
+  }
+  if err := iprot.ReadStructEnd(); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+  }
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceResult)  ReadField0(iprot thrift.TProtocol) error {
+  if v, err := iprot.ReadI32(); err != nil {
+  return thrift.PrependError("error reading field 0: ", err)
+} else {
+  p.Success = &v
+}
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceResult) Write(oprot thrift.TProtocol) error {
+  if err := oprot.WriteStructBegin("TransferWithDatasource_result"); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err) }
+  if p != nil {
+    if err := p.writeField0(oprot); err != nil { return err }
+  }
+  if err := oprot.WriteFieldStop(); err != nil {
+    return thrift.PrependError("write field stop error: ", err) }
+  if err := oprot.WriteStructEnd(); err != nil {
+    return thrift.PrependError("write struct stop error: ", err) }
+  return nil
+}
+
+func (p *MetricsTransferTransferWithDatasourceResult) writeField0(oprot thrift.TProtocol) (err error) {
+  if p.IsSetSuccess() {
+    if err := oprot.WriteFieldBegin("success", thrift.I32, 0); err != nil {
+      return thrift.PrependError(fmt.Sprintf("%T write field begin error 0:success: ", p), err) }
+    if err := oprot.WriteI32(int32(*p.Success)); err != nil {
+    return thrift.PrependError(fmt.Sprintf("%T.success (0) field write error: ", p), err) }
+    if err := oprot.WriteFieldEnd(); err != nil {
+      return thrift.PrependError(fmt.Sprintf("%T write field end error 0:success: ", p), err) }
+  }
+  return err
+}
+
+func (p *MetricsTransferTransferWithDatasourceResult) String() string {
+  if p == nil {
+    return "<nil>"
+  }
+  return fmt.Sprintf("MetricsTransferTransferWithDatasourceResult(%+v)", *p)
 }
 
 

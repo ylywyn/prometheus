@@ -13,7 +13,7 @@ import (
 
 const (
 	timeOut   = 5 * time.Second
-	errReConn = 2
+	errReConn = 3
 )
 
 type Client struct {
@@ -74,15 +74,18 @@ func (c *Client) conn() error {
 
 	transportFactory := thrift.NewTBufferedTransportFactory(8192)
 	protocolFactory := thrift.NewTCompactProtocolFactory()
-
 	transport, err := thrift.NewTSocketTimeout(c.addr, timeOut)
 	if err != nil {
+		if transport != nil {
+			transport.Close()
+		}
 		return err
 	}
 
 	useTransport, err := transportFactory.GetTransport(transport)
 	client := metrics.NewMetricsTransferClientFactory(useTransport, protocolFactory)
 	if err := transport.Open(); err != nil {
+		transport.Close()
 		return fmt.Errorf("rpc clent opening socket to %s, err:%s", c.addr, err)
 	}
 	c.client = client

@@ -13,8 +13,8 @@ import (
 
 const (
 	defaultFlushInterval = 4
-	defaultParallel      = 8
-	batchNumbers         = 164
+	defaultParallel      = 6
+	batchNumbers         = 256
 )
 
 type Status struct {
@@ -30,6 +30,8 @@ type SendManager struct {
 	senders  []*Sender
 	index    uint64
 	status   Status
+
+	HashAddr []string
 }
 
 func NewSendManager(name, addr string) *SendManager {
@@ -37,8 +39,8 @@ func NewSendManager(name, addr string) *SendManager {
 	if parallel < defaultParallel {
 		parallel = defaultParallel
 	} else {
-		if parallel > 3*defaultParallel {
-			parallel = 3 * defaultParallel
+		if parallel > 2*defaultParallel {
+			parallel = 2 * defaultParallel
 		}
 	}
 
