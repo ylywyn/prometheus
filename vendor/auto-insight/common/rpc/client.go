@@ -56,7 +56,13 @@ func (c *Client) Send(ms *metrics.Metrics) error {
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
 
-	_, err := c.client.Transfer(ctx, ms)
+	var err error
+	if len(c.manager.Datasource) > 0 {
+		_, err = c.client.TransferWithDatasource(ctx, ms, c.manager.Datasource)
+	} else {
+		_, err = c.client.Transfer(ctx, ms)
+	}
+
 	if err != nil {
 		c.errCount++
 		log.Errorf("rpc clent send error:%s", err.Error())

@@ -25,12 +25,14 @@ type Manager struct {
 
 //addr:local rpc server addr, for listen
 //remoteAddr: remote rpc server addr, for send
-func NewManager(addr, remoteAddr string, appender Appendable) (*Manager, error) {
+func NewManager(addr, remoteAddr, datasource string, appender Appendable) (*Manager, error) {
 	rpcServer := rpc.NewMetricsRpcServer(addr)
 	var rpcClient *rpc.SendManager
 	if len(remoteAddr) > 8 {
 		rpcClient = rpc.NewSendManager("remote", remoteAddr)
+		rpcClient.Datasource = datasource
 		log.Infof("remote prometheus server is: %s", remoteAddr)
+		log.Infof("datasource is: %s", datasource)
 	}
 
 	pool := NewWorkerPool(runtime.NumCPU(), appender)
@@ -38,7 +40,7 @@ func NewManager(addr, remoteAddr string, appender Appendable) (*Manager, error) 
 	m := &Manager{
 		stopped:    true,
 		rpcServer:  rpcServer,
-		rpcClient:  rpcClient,
+		rpcSender:  rpcClient,
 		workerPool: pool,
 	}
 	pool.manager = m

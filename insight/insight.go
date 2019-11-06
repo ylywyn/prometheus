@@ -15,6 +15,7 @@ var (
 type InsightConfig struct {
 	RpcListenAddr       string
 	RemoteRpcServerAddr string
+	Datasource          string
 }
 
 func SetLog(level string) {
@@ -23,7 +24,7 @@ func SetLog(level string) {
 
 func RpcManagerRun(appender rpc.Appendable) error {
 	var err error
-	Manager, err = rpc.NewManager(Config.RpcListenAddr, Config.RemoteRpcServerAddr, appender)
+	Manager, err = rpc.NewManager(Config.RpcListenAddr, Config.RemoteRpcServerAddr, Config.Datasource, appender)
 	if err != nil {
 		log.Errorf("NewRpcManager error: %s", err.Error())
 		return err

@@ -31,7 +31,8 @@ type SendManager struct {
 	index    uint64
 	status   Status
 
-	HashAddr []string
+	HashAddr   []string
+	Datasource string
 }
 
 func NewSendManager(name, addr string) *SendManager {

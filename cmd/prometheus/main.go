@@ -149,6 +149,9 @@ func main() {
 	a.Flag("insight.rpc-remote-address", "Address to remote prometheus rpc server, for sync all data to the server.").
 		Default("").StringVar(&insight.Config.RemoteRpcServerAddr)
 
+	a.Flag("insight.rpc-datasource", "data to gateway,need data source.").
+		Default("").StringVar(&insight.Config.Datasource)
+
 	a.Flag("web.read-timeout",
 		"Maximum duration before timing out read of the request, and closing idle connections.").
 		Default("5m").SetValue(&cfg.webTimeout)
