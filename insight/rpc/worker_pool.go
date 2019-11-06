@@ -111,6 +111,10 @@ func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 	return nil
 }
 
+func (wp *WorkerPool) WriteWithDatasource(ms *metrics.Metrics, ds string) error {
+	return wp.Write(ms)
+}
+
 //使用前8个字节，计算index
 func (wp *WorkerPool) workerIndex(series string) int {
 	i := 0

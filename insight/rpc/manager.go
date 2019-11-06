@@ -20,7 +20,7 @@ type Manager struct {
 	stopped    bool
 	workerPool *WorkerPool
 	rpcServer  *rpc.MetricsRpcServer
-	rpcClient  *rpc.SendManager
+	rpcSender  *rpc.SendManager
 }
 
 //addr:local rpc server addr, for listen
@@ -49,12 +49,17 @@ func (m *Manager) Start() error {
 	if m.stopped {
 		m.stopped = false
 
-		if m.rpcClient != nil {
-			m.rpcClient.Run()
+		if m.rpcSender != nil {
+			m.rpcSender.Run()
 		}
 
 		m.workerPool.Run()
-		if err := m.rpcServer.Run(m.workerPool.Write); err != nil {
+
+		handler := rpc.MetricsTransferHandler{
+			Processor:               m.workerPool.Write,
+			ProcessorWithDatasource: m.workerPool.WriteWithDatasource,
+		}
+		if err := m.rpcServer.Run(handler); err != nil {
 			log.Errorf("run rpc server error:%s", err.Error())
 		}
 	}
@@ -76,8 +81,8 @@ func (m *Manager) Stop() {
 			m.workerPool.Stop()
 		}
 
-		if m.rpcClient != nil {
-			m.rpcClient.Stop()
+		if m.rpcSender != nil {
+			m.rpcSender.Stop()
 		}
 	}
 
@@ -85,13 +90,13 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) WriteToRemote(ms *metrics.Metrics) {
-	if m.rpcClient != nil {
-		if err := m.rpcClient.Send(ms); err != nil {
+	if m.rpcSender != nil {
+		if err := m.rpcSender.Send(ms); err != nil {
 			log.Errorf("write to remote error:%s", err.Error())
 		}
 	}
 }
 
 func (m *Manager) SendRemote() bool {
-	return m.rpcClient != nil
+	return m.rpcSender != nil
 }
