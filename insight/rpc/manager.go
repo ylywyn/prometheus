@@ -31,7 +31,7 @@ func NewManager(addr, remoteAddr, datasource string, appender Appendable) (*Mana
 	if len(remoteAddr) > 8 {
 		rpcClient = rpc.NewSendManager("remote", remoteAddr)
 		rpcClient.Datasource = datasource
-		log.Infof("remote prometheus server is: %s", remoteAddr)
+		log.Infof("remote rpc server is: %s", remoteAddr)
 		log.Infof("datasource is: %s", datasource)
 	}
 
