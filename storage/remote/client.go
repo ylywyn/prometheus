@@ -39,11 +39,11 @@ var userAgent = fmt.Sprintf("Prometheus/%s", version.Version)
 
 // Client allows reading and writing from/to a remote HTTP endpoint.
 type Client struct {
-	index         int // Used to differentiate clients in metrics.
-	url           *config_util.URL
-	client        *http.Client
-	timeout       time.Duration
-	switcher     *Switcher
+	index    int // Used to differentiate clients in metrics.
+	url      *config_util.URL
+	client   *http.Client
+	timeout  time.Duration
+	switcher *Switcher
 }
 
 // ClientConfig configures a Client.
@@ -51,7 +51,7 @@ type ClientConfig struct {
 	URL              *config_util.URL
 	Timeout          model.Duration
 	HTTPClientConfig config_util.HTTPClientConfig
-    RedisAddr        string
+	RedisAddr        string
 	PrometheusId     string
 	RedisSwitcher    bool
 	RedisReplica     string
@@ -69,11 +69,11 @@ func NewClient(index int, conf *ClientConfig) (*Client, error) {
 		panic(err)
 	}
 	return &Client{
-		index:         index,
-		url:           conf.URL,
-		client:        httpClient,
-		timeout:       time.Duration(conf.Timeout),
-		switcher:      switcher,
+		index:    index,
+		url:      conf.URL,
+		client:   httpClient,
+		timeout:  time.Duration(conf.Timeout),
+		switcher: switcher,
 	}, nil
 }
 
@@ -84,7 +84,7 @@ type recoverableError struct {
 // Store sends a batch of samples to the HTTP endpoint, the request is the proto marshalled
 // and encoded bytes from codec.go.
 func (c *Client) Store(ctx context.Context, req []byte) error {
-        ok := c.switcher.get()
+	ok := c.switcher.get()
 	if !ok {
 		return nil
 	}
@@ -196,5 +196,3 @@ func (c *Client) Read(ctx context.Context, query *prompb.Query) (*prompb.QueryRe
 
 	return resp.Results[0], nil
 }
-
-
