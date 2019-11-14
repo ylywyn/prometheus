@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
@@ -152,7 +153,13 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 	seriesAdded := 0
 	var errRet error
 
+	t := time.Now().UnixNano() / 1e6
+	const diffTime = 10 * 1000
 	for _, m := range ms {
+		if math.Abs(float64(t-m.Time)) < diffTime {
+			m.Time = t
+		}
+
 		ce, ok := w.seriesCache.get(m.MetricKey)
 		if ok {
 			if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
@@ -160,7 +167,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 					ok = false
 				} else {
 					//log.Errorf("appender.AddFast error:%s", err.Error())
-					errRet = fmt.Errorf("appender.AddFast: %s", err.Error())
+					errRet = fmt.Errorf("appender.AddFast: %s 170", err.Error())
 					continue
 				}
 			} else {
@@ -174,7 +181,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 			_, err := p.Next()
 			if err != nil {
 				if err != io.EOF {
-					log.Errorf("NewPromParser error:%s", err.Error())
+					log.Errorf("Parser error:%s, metiric:%s", err.Error(), m.MetricKey)
 				}
 				continue
 			}
@@ -188,7 +195,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 			ref, err := app.Add(lset, m.Time, m.Value)
 			if err != nil {
 				//log.Errorf("appender.Add error:%s", err.Error())
-				errRet = fmt.Errorf("appender.Add: %s", err.Error())
+				errRet = fmt.Errorf("appender.Add: %s. 198", err.Error())
 				continue
 			}
 
