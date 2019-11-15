@@ -1178,7 +1178,7 @@ loop:
 		}
 		added++
 
-		if insight.Manager.SendRemote() && ce != nil {
+		if insight.Manager != nil && insight.Manager.SendRemote() && ce != nil {
 			addFun(ce.key, t, v)
 		}
 	}
@@ -1219,7 +1219,7 @@ loop:
 		return total, added, seriesAdded, err
 	}
 
-	if insight.Manager.SendRemote() {
+	if insight.Manager != nil && insight.Manager.SendRemote() {
 		insight.Manager.WriteToRemote(&metrics.Metrics{ms})
 		sl.lastScrapeCount = total
 	}
@@ -1320,7 +1320,7 @@ func (sl *scrapeLoop) addReportSample(app storage.Appender, s string, t int64, v
 			MetricKey: ce.key,
 		}
 		ms = append(ms, m)
-		if insight.Manager.SendRemote() {
+		if insight.Manager != nil && insight.Manager.SendRemote() {
 			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
 		}
 
