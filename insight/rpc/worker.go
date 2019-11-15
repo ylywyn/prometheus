@@ -152,6 +152,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 	added := 0
 	seriesAdded := 0
 	var errRet error
+	var errParse error
 
 	t := time.Now().UnixNano() / 1e6
 	const diffTime = 10 * 1000
@@ -180,8 +181,8 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 			p := textparse.NewPromParser(strconv.StrToBytes(m.MetricKey))
 			_, err := p.Next()
 			if err != nil {
-				if err != io.EOF {
-					log.Errorf("Parser error:%s, metiric:%s", err.Error(), m.MetricKey)
+				if err != io.EOF && errParse == nil {
+					errParse = fmt.Errorf("Parser error:%s, metiric:%s", err.Error(), m.MetricKey)
 				}
 				continue
 			}
@@ -206,6 +207,10 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 	}
 
 	metricsPool.Put(ms[:0])
+
+	if errParse != nil {
+		log.Error(errParse.Error())
+	}
 
 	log.Debugf("worker: %d add:%d", w.index, added)
 	if added > 0 {
