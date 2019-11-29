@@ -78,13 +78,15 @@ func (w *Worker) run() {
 	log.Debugf("wait for: %d ms", t)
 	time.Sleep(time.Duration(t) * time.Millisecond)
 
-	tClean := time.NewTicker(time.Duration(24*5) * time.Hour)
+	tClean := time.NewTicker(time.Duration(24) * time.Hour)
 	defer tClean.Stop()
 
 	interval := 3
 	tCommit := time.NewTicker(time.Duration(interval) * time.Second)
 	defer tCommit.Stop()
 
+	count := 0
+	const commitCount = 8192
 	errCount := 0
 	var err error
 	var app storage.Appender
@@ -117,6 +119,7 @@ func (w *Worker) run() {
 			log.Errorf("wp.appender.Commit error: %s", err.Error())
 		}
 
+		count = 0
 		app, err = w.appender.Appender()
 		if err != nil {
 			log.Errorf("w.appender.Appender error:%s", err.Error())
@@ -134,13 +137,21 @@ func (w *Worker) run() {
 				return
 			}
 
-			err := w.storage(ms, app)
+			add, err := w.storage(ms, app)
 			if err != nil {
 				log.Errorf("write to tsdb error:%s", err.Error())
 			}
 
+			count += add
+			if count > commitCount {
+				commit()
+			}
+
+
 		case <-tCommit.C:
-			commit()
+			if count > 0 {
+				commit()
+			}
 
 		case <-tClean.C:
 			w.seriesCache.clear()
@@ -148,7 +159,7 @@ func (w *Worker) run() {
 	}
 }
 
-func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
+func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error) {
 	added := 0
 	seriesAdded := 0
 	var errRet error
@@ -216,5 +227,5 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 	if added > 0 {
 		w.pool.Status(added, seriesAdded)
 	}
-	return errRet
+	return added, errRet
 }
