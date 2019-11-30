@@ -82,12 +82,12 @@ func (w *Worker) run() {
 	tClean := time.NewTicker(time.Duration(24) * time.Hour)
 	defer tClean.Stop()
 
-	interval := 3
+	interval := 5
 	tCommit := time.NewTicker(time.Duration(interval) * time.Second)
 	defer tCommit.Stop()
 
 	count := 0
-	const commitCount = 8192
+	const commitCount = 2048
 	errCount := 0
 	var err error
 	var app storage.Appender
