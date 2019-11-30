@@ -35,7 +35,11 @@ func NewManager(addr, remoteAddr, datasource string, appender Appendable) (*Mana
 		log.Infof("datasource is: %s", datasource)
 	}
 
-	pool := NewWorkerPool(runtime.NumCPU(), appender)
+	c := runtime.NumCPU()
+	if c > 16 {
+		c = c - 6
+	}
+	pool := NewWorkerPool(c, appender)
 
 	m := &Manager{
 		stopped:    true,

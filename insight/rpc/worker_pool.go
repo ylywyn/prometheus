@@ -9,7 +9,7 @@ import (
 	"auto-insight/common/rpc/gen-go/metrics"
 )
 
-const metricsCount = 64
+const metricsCount = 128
 
 var metricsPool = sync.Pool{
 	New: func() interface{} {

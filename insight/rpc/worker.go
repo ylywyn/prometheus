@@ -67,6 +67,7 @@ func (w *Worker) Storage(ms []*metrics.Metric) error {
 	select {
 	case w.metricChan <- ms:
 	default:
+		metricsPool.Put(ms[:0])
 		return errors.New("write to worker chan timeout")
 	}
 
@@ -147,7 +148,7 @@ func (w *Worker) run() {
 				commit()
 			}
 
-
+			metricsPool.Put(ms[:0])
 		case <-tCommit.C:
 			if count > 0 {
 				commit()
@@ -217,8 +218,6 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 		}
 	}
 
-	metricsPool.Put(ms[:0])
-
 	if errParse != nil {
 		log.Error(errParse.Error())
 	}
@@ -227,5 +226,6 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 	if added > 0 {
 		w.pool.Status(added, seriesAdded)
 	}
+
 	return added, errRet
 }
