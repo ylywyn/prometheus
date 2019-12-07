@@ -155,7 +155,7 @@ func (w *Worker) run() {
 			}
 
 		case <-tClean.C:
-			w.seriesCache.clear()
+			go w.seriesCache.clearTimeout()
 		}
 	}
 }
@@ -166,14 +166,16 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 	var errRet error
 	var errParse error
 
-	t := time.Now().UnixNano() / 1e6
+	now := time.Now()
+	t := now.UnixNano() / 1e6
+	tSec := now.Unix()
 	const diffTime = 10 * 1000
 	for _, m := range ms {
 		if math.Abs(float64(t-m.Time)) < diffTime {
 			m.Time = t
 		}
 
-		ce, ok := w.seriesCache.get(m.MetricKey)
+		ce, ok := w.seriesCache.get(m.MetricKey, tSec)
 		if ok {
 			if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 				if err == storage.ErrNotFound {
