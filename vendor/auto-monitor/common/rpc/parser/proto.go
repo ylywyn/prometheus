@@ -6,7 +6,7 @@ import (
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	dto "github.com/prometheus/client_model/go"
 
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 func ParseProtobuf(in io.Reader, groupLabels map[string]string) (*metrics.Metrics, error) {

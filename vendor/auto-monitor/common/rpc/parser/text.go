@@ -5,9 +5,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"auto-insight/common/container/list"
-	"auto-insight/common/rpc/gen-go/metrics"
-	"auto-insight/common/rpc/parser/expfmt"
+	"auto-monitor/common/container/list"
+	"auto-monitor/common/rpc/gen-go/metrics"
+	"auto-monitor/common/rpc/parser/expfmt"
 )
 
 var parserPool *TextParserPool

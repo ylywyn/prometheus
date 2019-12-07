@@ -11,9 +11,9 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/model"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
-	"auto-insight/common/rpc/parser/expfmt"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
+	"auto-monitor/common/rpc/parser/expfmt"
 )
 
 const (

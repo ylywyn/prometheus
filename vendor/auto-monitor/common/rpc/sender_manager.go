@@ -2,17 +2,16 @@ package rpc
 
 import (
 	"io"
-	"runtime"
 	"sync"
 	"sync/atomic"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
-	"auto-insight/common/rpc/parser"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
+	"auto-monitor/common/rpc/parser"
 )
 
 const (
-	defaultFlushInterval = 4
+	defaultFlushInterval = 5
 	defaultParallel      = 6
 	batchNumbers         = 256
 )
@@ -24,6 +23,7 @@ type Status struct {
 
 type SendManager struct {
 	sync.Mutex
+	addr     string
 	name     string
 	stopped  bool
 	parallel int
@@ -36,16 +36,10 @@ type SendManager struct {
 }
 
 func NewSendManager(name, addr string) *SendManager {
-	parallel := runtime.NumCPU()
-	if parallel < defaultParallel {
-		parallel = defaultParallel
-	} else {
-		if parallel > 2*defaultParallel {
-			parallel = 2 * defaultParallel
-		}
-	}
+	parallel := defaultParallel
 
 	m := &SendManager{
+		addr:     addr,
 		name:     name,
 		stopped:  true,
 		parallel: parallel,
@@ -70,7 +64,7 @@ func (m *SendManager) Run() error {
 	}
 	m.stopped = false
 
-	log.Infof("SendManager :%s run", m.name)
+	log.Infof("SendManager :%s %s run", m.name, m.addr)
 	return nil
 }
 
@@ -86,7 +80,7 @@ func (m *SendManager) Stop() error {
 	}
 	m.stopped = true
 
-	log.Infof("SendManager :%s stop", m.name)
+	log.Infof("SendManager :%s %s stop", m.name, m.addr)
 	return nil
 }
 

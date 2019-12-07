@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 type MetricsTransferHandler struct {

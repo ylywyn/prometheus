@@ -4,8 +4,8 @@ import (
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/pkg/errors"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 type MetricsRpcServer struct {
