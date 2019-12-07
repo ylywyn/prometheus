@@ -19,23 +19,27 @@ type cacheEntry struct {
 }
 
 type SeriesCache struct {
-	sync.RWMutex
-	worker *Worker
-	series map[string]*cacheEntry
+	worker     *Worker
+	seriesLock sync.RWMutex
+	series     map[string]*cacheEntry
+
+	fastSeriesLock sync.RWMutex
+	fastSeries     map[uint64]*cacheEntry
 }
 
 func NewSeriesCache(w *Worker) *SeriesCache {
 	c := &SeriesCache{
-		worker: w,
-		series: make(map[string]*cacheEntry, 2048000),
+		worker:     w,
+		series:     make(map[string]*cacheEntry, 1024000),
+		fastSeries: make(map[uint64]*cacheEntry, 1024000),
 	}
 	return c
 }
 
-func (c *SeriesCache) get(met string, t int64) (*cacheEntry, bool) {
-	c.RLock()
-	e, ok := c.series[met]
-	c.RUnlock()
+func (c *SeriesCache) get(key string, t int64) (*cacheEntry, bool) {
+	c.seriesLock.RLock()
+	e, ok := c.series[key]
+	c.seriesLock.RUnlock()
 	if !ok {
 		return nil, false
 	}
@@ -43,37 +47,77 @@ func (c *SeriesCache) get(met string, t int64) (*cacheEntry, bool) {
 	return e, true
 }
 
-func (c *SeriesCache) add(met string, ref uint64, lset labels.Labels) {
+func (c *SeriesCache) getFast(key uint64, t int64) (*cacheEntry, bool) {
+	c.fastSeriesLock.RLock()
+	e, ok := c.fastSeries[key]
+	c.fastSeriesLock.RUnlock()
+	if !ok {
+		return nil, false
+	}
+	e.t = t
+	return e, true
+}
+
+func (c *SeriesCache) add(key string, ref uint64, lset labels.Labels) {
 	if ref == 0 {
 		return
 	}
-	c.Lock()
-	c.series[met] = &cacheEntry{ref: ref, lset: lset}
-	c.Unlock()
+	c.seriesLock.Lock()
+	c.series[key] = &cacheEntry{ref: ref, lset: lset}
+	c.seriesLock.Unlock()
+}
+
+func (c *SeriesCache) addFast(key, ref uint64, lset labels.Labels) {
+	if ref == 0 {
+		return
+	}
+	c.fastSeriesLock.Lock()
+	c.fastSeries[key] = &cacheEntry{ref: ref, lset: lset}
+	c.fastSeriesLock.Unlock()
 }
 
 func (c *SeriesCache) clearTimeout() {
-	log.Infof("worker %d begin clean cahce. cache count:%d", c.worker.index, len(c.series))
+	log.Infof("worker %d begin clean cahce.", c.worker.index)
 
 	t := time.Now().Unix()
-	keys := make([]string, 0, len(c.series)/20)
 
-	c.RLock()
+	// string keys
+	keys := make([]string, 0, len(c.series)/20)
+	c.seriesLock.RLock()
 	for k, v := range c.series {
 		if t-v.t > cacheTimeout {
 			keys = append(keys, k)
 		}
 	}
-	c.RUnlock()
+	c.seriesLock.RUnlock()
 
 	count := len(keys)
 	if count > 0 {
 		for _, k := range keys {
-			c.Lock()
+			c.seriesLock.Lock()
 			delete(c.series, k)
-			c.Unlock()
+			c.seriesLock.Unlock()
 		}
 	}
 
-	log.Infof("worker %d  has clean cahce: %d ok. cache cout:%d", c.worker.index, count, len(c.series))
+	//int keys
+	intKeys := make([]uint64, 0, len(c.fastSeries)/20)
+	c.fastSeriesLock.RLock()
+	for k, v := range c.fastSeries {
+		if t-v.t > cacheTimeout {
+			intKeys = append(intKeys, k)
+		}
+	}
+	c.fastSeriesLock.RUnlock()
+
+	intCount := len(intKeys)
+	if intCount > 0 {
+		for _, k := range intKeys {
+			c.fastSeriesLock.Lock()
+			delete(c.fastSeries, k)
+			c.fastSeriesLock.Unlock()
+		}
+	}
+
+	log.Infof("worker %d  has clean cahce: %d ok.", c.worker.index, count+intCount)
 }

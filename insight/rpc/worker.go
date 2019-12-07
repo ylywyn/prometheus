@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/textparse"
 	"github.com/prometheus/prometheus/storage"
@@ -175,7 +176,16 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 			m.Time = t
 		}
 
-		ce, ok := w.seriesCache.get(m.MetricKey, tSec)
+		var ok bool
+		var hash uint64
+		var ce *cacheEntry
+		if len(m.MetricKey) > 128 {
+			hash = xxhash.Sum64String(m.MetricKey)
+			ce, ok = w.seriesCache.getFast(hash, tSec)
+		} else {
+			ce, ok = w.seriesCache.get(m.MetricKey, tSec)
+		}
+
 		if ok {
 			if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 				if err == storage.ErrNotFound {
@@ -216,7 +226,11 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 
 			added++
 			seriesAdded++
-			w.seriesCache.add(m.MetricKey, ref, lset)
+			if hash > 0 {
+				w.seriesCache.addFast(hash, ref, lset)
+			} else {
+				w.seriesCache.add(m.MetricKey, ref, lset)
+			}
 		}
 	}
 
