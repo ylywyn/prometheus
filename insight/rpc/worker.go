@@ -38,7 +38,7 @@ func NewWorker(i int, appender Appendable) *Worker {
 		metricChan: make(chan []*metrics.Metric, 512),
 	}
 
-	w.seriesCache = NewSeriesCache()
+	w.seriesCache = NewSeriesCache(w)
 	return w
 }
 

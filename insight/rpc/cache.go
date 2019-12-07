@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/pkg/labels"
+
+	"auto-insight/common/log"
 )
 
 //6 hour
@@ -18,11 +20,13 @@ type cacheEntry struct {
 
 type SeriesCache struct {
 	sync.RWMutex
+	worker *Worker
 	series map[string]*cacheEntry
 }
 
-func NewSeriesCache() *SeriesCache {
+func NewSeriesCache(w *Worker) *SeriesCache {
 	c := &SeriesCache{
+		worker: w,
 		series: make(map[string]*cacheEntry, 2048000),
 	}
 	return c
@@ -49,8 +53,9 @@ func (c *SeriesCache) add(met string, ref uint64, lset labels.Labels) {
 }
 
 func (c *SeriesCache) clearTimeout() {
-	t := time.Now().Unix()
+	log.Infof("worker %d begin clean cahce. cache count:%d", c.worker.index, len(c.series))
 
+	t := time.Now().Unix()
 	keys := make([]string, 0, len(c.series)/20)
 
 	c.RLock()
@@ -61,11 +66,14 @@ func (c *SeriesCache) clearTimeout() {
 	}
 	c.RUnlock()
 
-	if len(keys) > 0 {
+	count := len(keys)
+	if count > 0 {
 		for _, k := range keys {
 			c.Lock()
 			delete(c.series, k)
 			c.Unlock()
 		}
 	}
+
+	log.Infof("worker %d  has clean cahce: %d ok. cache cout:%d", c.worker.index, count, len(c.series))
 }
