@@ -6,9 +6,9 @@ import (
 
 	"github.com/prometheus/prometheus/storage"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc"
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 type Appendable interface {

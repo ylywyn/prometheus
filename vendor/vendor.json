@@ -45,6 +45,48 @@
 			"revisionTime": "2019-10-12T02:39:36Z"
 		},
 		{
+			"checksumSHA1": "OpTZzBhcKgyQcFA1Oqe9Gjhu/bU=",
+			"path": "auto-monitor/common/container/list",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
+			"checksumSHA1": "k64iks+tN65IweuepQ1iOt8UQAY=",
+			"path": "auto-monitor/common/log",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
+			"checksumSHA1": "QbTXEUNtTCGSINWNO/8eaLijxTI=",
+			"path": "auto-monitor/common/rpc",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
+			"checksumSHA1": "NYvYnpoj0m81PnNbXVwIihM1is8=",
+			"path": "auto-monitor/common/rpc/gen-go/metrics",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
+			"checksumSHA1": "LqAHEbW5p/c/YuopMSiZ0lMOAYo=",
+			"path": "auto-monitor/common/rpc/parser",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
+			"checksumSHA1": "FfZKoMahE7tNMhNii23z1qBq0BQ=",
+			"path": "auto-monitor/common/rpc/parser/expfmt",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
+			"checksumSHA1": "uq4H6SDQxjU94qgEGmHYV/jgONw=",
+			"path": "auto-monitor/common/strconv",
+			"revision": "b262ec91d8fc35d6aeead5c7d88ee67bba75f8c0",
+			"revisionTime": "2019-12-05T03:31:29Z"
+		},
+		{
 			"checksumSHA1": "gEOtyPsAyrbkLEc3F39vLmQhxog=",
 			"origin": "auto-insight/common/vendor/github.com/apache/thrift/lib/go/thrift",
 			"path": "github.com/apache/thrift/lib/go/thrift",

@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/prometheus/pkg/labels"
 
-	"auto-insight/common/log"
+	"auto-monitor/common/log"
 )
 
 //6 hour

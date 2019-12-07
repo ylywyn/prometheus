@@ -46,7 +46,7 @@ import (
 	"github.com/prometheus/prometheus/pkg/value"
 	"github.com/prometheus/prometheus/storage"
 
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/rpc/gen-go/metrics"
 	"github.com/prometheus/prometheus/insight"
 )
 

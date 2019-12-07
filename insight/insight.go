@@ -3,7 +3,7 @@ package insight
 import (
 	"github.com/prometheus/prometheus/insight/rpc"
 
-	"auto-insight/common/log"
+	"auto-monitor/common/log"
 )
 
 var (

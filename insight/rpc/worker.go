@@ -13,9 +13,9 @@ import (
 	"github.com/prometheus/prometheus/pkg/textparse"
 	"github.com/prometheus/prometheus/storage"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
-	"auto-insight/common/strconv"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
+	"auto-monitor/common/strconv"
 )
 
 type Worker struct {

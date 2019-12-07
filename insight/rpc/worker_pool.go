@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 const metricsCount = 128
