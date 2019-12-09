@@ -59,21 +59,21 @@ func (c *SeriesCache) getFast(key uint64, t int64) (*cacheEntry, bool) {
 	return e, true
 }
 
-func (c *SeriesCache) add(key string, ref uint64, lset labels.Labels) {
+func (c *SeriesCache) add(key string, ref uint64, lset labels.Labels, t int64) {
 	if ref == 0 {
 		return
 	}
 	c.seriesLock.Lock()
-	c.series[key] = &cacheEntry{ref: ref, lset: lset}
+	c.series[key] = &cacheEntry{ref: ref, lset: lset, t: t}
 	c.seriesLock.Unlock()
 }
 
-func (c *SeriesCache) addFast(key, ref uint64, lset labels.Labels) {
+func (c *SeriesCache) addFast(key, ref uint64, lset labels.Labels, t int64) {
 	if ref == 0 {
 		return
 	}
 	c.fastSeriesLock.Lock()
-	c.fastSeries[key] = &cacheEntry{ref: ref, lset: lset}
+	c.fastSeries[key] = &cacheEntry{ref: ref, lset: lset, t: t}
 	c.fastSeriesLock.Unlock()
 }
 
@@ -133,7 +133,7 @@ func (c *SeriesCache) clearTimeout() {
 
 	log.Infof("worker %d  has clean cahce: %d ok.", c.worker.index, count+intCount)
 	if c.worker.index == 0 {
-		t := time.NewTimer(time.Minute)
+		t := time.NewTimer(time.Minute * 2)
 		defer t.Stop()
 
 		<-t.C

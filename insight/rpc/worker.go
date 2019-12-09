@@ -80,7 +80,8 @@ func (w *Worker) run() {
 	log.Debugf("wait for: %d ms", t)
 	time.Sleep(time.Duration(t) * time.Millisecond)
 
-	tClean := time.NewTicker(time.Duration(24) * time.Hour)
+	//tClean := time.NewTicker(time.Minute)
+	tClean := time.NewTicker(time.Duration(12) * time.Hour)
 	defer tClean.Stop()
 
 	interval := 5
@@ -227,9 +228,9 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 			added++
 			seriesAdded++
 			if hash > 0 {
-				w.seriesCache.addFast(hash, ref, lset)
+				w.seriesCache.addFast(hash, ref, lset, tSec)
 			} else {
-				w.seriesCache.add(m.MetricKey, ref, lset)
+				w.seriesCache.add(m.MetricKey, ref, lset, tSec)
 			}
 		}
 	}
