@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"runtime"
 	"sync"
 	"time"
 
@@ -93,10 +94,15 @@ func (c *SeriesCache) clearTimeout() {
 
 	count := len(keys)
 	if count > 0 {
+		i := 0
 		for _, k := range keys {
 			c.seriesLock.Lock()
 			delete(c.series, k)
 			c.seriesLock.Unlock()
+			i += 1
+			if i%2000 == 0 {
+				time.Sleep(time.Millisecond * 20)
+			}
 		}
 	}
 
@@ -112,12 +118,25 @@ func (c *SeriesCache) clearTimeout() {
 
 	intCount := len(intKeys)
 	if intCount > 0 {
+		i := 0
 		for _, k := range intKeys {
 			c.fastSeriesLock.Lock()
 			delete(c.fastSeries, k)
 			c.fastSeriesLock.Unlock()
+
+			i += 1
+			if i%2000 == 0 {
+				time.Sleep(time.Millisecond * 20)
+			}
 		}
 	}
 
 	log.Infof("worker %d  has clean cahce: %d ok.", c.worker.index, count+intCount)
+	if c.worker.index == 0 {
+		t := time.NewTimer(time.Minute)
+		defer t.Stop()
+
+		<-t.C
+		runtime.GC()
+	}
 }
