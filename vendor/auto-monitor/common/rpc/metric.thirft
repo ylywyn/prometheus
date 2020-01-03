@@ -1,0 +1,17 @@
+namespace go metrics
+
+struct Metric {
+    1: required  i64 Time = 0,
+	2: required  double Value,
+	3: required  string MetricKey
+}
+
+struct Metrics {
+    1: required  list<Metric> List = 0
+}
+
+
+service MetricsTransfer {
+    i32 Transfer(1: Metrics ms)
+    i32 Transfer(1: Metrics ms,2:string datasource)
+}

@@ -6,9 +6,9 @@ import (
 
 	"github.com/prometheus/prometheus/storage"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc"
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 type Appendable interface {
@@ -20,25 +20,31 @@ type Manager struct {
 	stopped    bool
 	workerPool *WorkerPool
 	rpcServer  *rpc.MetricsRpcServer
-	rpcClient  *rpc.SendManager
+	rpcSender  *rpc.SendManager
 }
 
 //addr:local rpc server addr, for listen
 //remoteAddr: remote rpc server addr, for send
-func NewManager(addr, remoteAddr string, appender Appendable) (*Manager, error) {
+func NewManager(addr, remoteAddr, datasource string, appender Appendable) (*Manager, error) {
 	rpcServer := rpc.NewMetricsRpcServer(addr)
 	var rpcClient *rpc.SendManager
 	if len(remoteAddr) > 8 {
 		rpcClient = rpc.NewSendManager("remote", remoteAddr)
-		log.Infof("remote prometheus server is: %s", remoteAddr)
+		rpcClient.Datasource = datasource
+		log.Infof("remote rpc server is: %s", remoteAddr)
+		log.Infof("datasource is: %s", datasource)
 	}
 
-	pool := NewWorkerPool(runtime.NumCPU(), appender)
+	c := runtime.NumCPU()
+	if c > 16 {
+		c = c - 6
+	}
+	pool := NewWorkerPool(c, appender)
 
 	m := &Manager{
 		stopped:    true,
 		rpcServer:  rpcServer,
-		rpcClient:  rpcClient,
+		rpcSender:  rpcClient,
 		workerPool: pool,
 	}
 	pool.manager = m
@@ -49,12 +55,17 @@ func (m *Manager) Start() error {
 	if m.stopped {
 		m.stopped = false
 
-		if m.rpcClient != nil {
-			m.rpcClient.Run()
+		if m.rpcSender != nil {
+			m.rpcSender.Run()
 		}
 
 		m.workerPool.Run()
-		if err := m.rpcServer.Run(m.workerPool.Write); err != nil {
+
+		handler := rpc.MetricsTransferHandler{
+			Processor:               m.workerPool.Write,
+			ProcessorWithDatasource: m.workerPool.WriteWithDatasource,
+		}
+		if err := m.rpcServer.Run(handler); err != nil {
 			log.Errorf("run rpc server error:%s", err.Error())
 		}
 	}
@@ -76,8 +87,8 @@ func (m *Manager) Stop() {
 			m.workerPool.Stop()
 		}
 
-		if m.rpcClient != nil {
-			m.rpcClient.Stop()
+		if m.rpcSender != nil {
+			m.rpcSender.Stop()
 		}
 	}
 
@@ -85,13 +96,13 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) WriteToRemote(ms *metrics.Metrics) {
-	if m.rpcClient != nil {
-		if err := m.rpcClient.Send(ms); err != nil {
+	if m.rpcSender != nil {
+		if err := m.rpcSender.Send(ms); err != nil {
 			log.Errorf("write to remote error:%s", err.Error())
 		}
 	}
 }
 
 func (m *Manager) SendRemote() bool {
-	return m.rpcClient != nil
+	return m.rpcSender != nil
 }

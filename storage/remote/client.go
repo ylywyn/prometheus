@@ -30,7 +30,6 @@ import (
 	config_util "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
-
 	"github.com/prometheus/prometheus/prompb"
 )
 
@@ -40,10 +39,11 @@ var userAgent = fmt.Sprintf("Prometheus/%s", version.Version)
 
 // Client allows reading and writing from/to a remote HTTP endpoint.
 type Client struct {
-	index   int // Used to differentiate clients in metrics.
-	url     *config_util.URL
-	client  *http.Client
-	timeout time.Duration
+	index    int // Used to differentiate clients in metrics.
+	url      *config_util.URL
+	client   *http.Client
+	timeout  time.Duration
+	switcher *Switcher
 }
 
 // ClientConfig configures a Client.
@@ -51,6 +51,10 @@ type ClientConfig struct {
 	URL              *config_util.URL
 	Timeout          model.Duration
 	HTTPClientConfig config_util.HTTPClientConfig
+	RedisAddr        string
+	PrometheusId     string
+	RedisSwitcher    bool
+	RedisReplica     string
 }
 
 // NewClient creates a new Client.
@@ -60,11 +64,16 @@ func NewClient(index int, conf *ClientConfig) (*Client, error) {
 		return nil, err
 	}
 
+	switcher, err := NewSwitcher(conf.RedisAddr, conf.PrometheusId, conf.RedisReplica, conf.RedisSwitcher)
+	if err != nil {
+		panic(err)
+	}
 	return &Client{
-		index:   index,
-		url:     conf.URL,
-		client:  httpClient,
-		timeout: time.Duration(conf.Timeout),
+		index:    index,
+		url:      conf.URL,
+		client:   httpClient,
+		timeout:  time.Duration(conf.Timeout),
+		switcher: switcher,
 	}, nil
 }
 
@@ -75,6 +84,10 @@ type recoverableError struct {
 // Store sends a batch of samples to the HTTP endpoint, the request is the proto marshalled
 // and encoded bytes from codec.go.
 func (c *Client) Store(ctx context.Context, req []byte) error {
+	ok := c.switcher.get()
+	if !ok {
+		return nil
+	}
 	httpReq, err := http.NewRequest("POST", c.url.String(), bytes.NewReader(req))
 	if err != nil {
 		// Errors from NewRequest are from unparseable URLs, so are not

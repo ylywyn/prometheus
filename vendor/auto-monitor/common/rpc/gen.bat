@@ -1,0 +1,1 @@
+thrift.exe  -r --gen go  metric.thirft

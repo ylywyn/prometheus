@@ -4,17 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/textparse"
 	"github.com/prometheus/prometheus/storage"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
-	"auto-insight/common/strconv"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
+	"auto-monitor/common/strconv"
 )
 
 type Worker struct {
@@ -37,7 +39,7 @@ func NewWorker(i int, appender Appendable) *Worker {
 		metricChan: make(chan []*metrics.Metric, 512),
 	}
 
-	w.seriesCache = NewSeriesCache()
+	w.seriesCache = NewSeriesCache(w)
 	return w
 }
 
@@ -66,6 +68,7 @@ func (w *Worker) Storage(ms []*metrics.Metric) error {
 	select {
 	case w.metricChan <- ms:
 	default:
+		metricsPool.Put(ms[:0])
 		return errors.New("write to worker chan timeout")
 	}
 
@@ -77,13 +80,16 @@ func (w *Worker) run() {
 	log.Debugf("wait for: %d ms", t)
 	time.Sleep(time.Duration(t) * time.Millisecond)
 
-	tClean := time.NewTicker(time.Duration(24*5) * time.Hour)
+	//tClean := time.NewTicker(time.Minute)
+	tClean := time.NewTicker(time.Duration(12) * time.Hour)
 	defer tClean.Stop()
 
-	interval := 3
+	interval := 5
 	tCommit := time.NewTicker(time.Duration(interval) * time.Second)
 	defer tCommit.Stop()
 
+	count := 0
+	const commitCount = 2048
 	errCount := 0
 	var err error
 	var app storage.Appender
@@ -116,6 +122,7 @@ func (w *Worker) run() {
 			log.Errorf("wp.appender.Commit error: %s", err.Error())
 		}
 
+		count = 0
 		app, err = w.appender.Appender()
 		if err != nil {
 			log.Errorf("w.appender.Appender error:%s", err.Error())
@@ -133,34 +140,60 @@ func (w *Worker) run() {
 				return
 			}
 
-			err := w.storage(ms, app)
+			add, err := w.storage(ms, app)
 			if err != nil {
 				log.Errorf("write to tsdb error:%s", err.Error())
 			}
 
+			count += add
+			if count > commitCount {
+				commit()
+			}
+
+			metricsPool.Put(ms[:0])
 		case <-tCommit.C:
-			commit()
+			if count > 0 {
+				commit()
+			}
 
 		case <-tClean.C:
-			w.seriesCache.clear()
+			go w.seriesCache.clearTimeout()
 		}
 	}
 }
 
-func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
+func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error) {
 	added := 0
 	seriesAdded := 0
 	var errRet error
+	var errParse error
 
+	now := time.Now()
+	t := now.UnixNano() / 1e6
+	tSec := now.Unix()
+	const diffTime = 10 * 1000
 	for _, m := range ms {
-		ce, ok := w.seriesCache.get(m.MetricKey)
+		if math.Abs(float64(t-m.Time)) < diffTime {
+			m.Time = t
+		}
+
+		var ok bool
+		var hash uint64
+		var ce *cacheEntry
+		if len(m.MetricKey) > 128 {
+			hash = xxhash.Sum64String(m.MetricKey)
+			ce, ok = w.seriesCache.getFast(hash, tSec)
+		} else {
+			ce, ok = w.seriesCache.get(m.MetricKey, tSec)
+		}
+
 		if ok {
 			if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 				if err == storage.ErrNotFound {
 					ok = false
 				} else {
 					//log.Errorf("appender.AddFast error:%s", err.Error())
-					errRet = fmt.Errorf("appender.AddFast: %s", err.Error())
+					errRet = fmt.Errorf("appender.AddFast: %s 170", err.Error())
 					continue
 				}
 			} else {
@@ -173,8 +206,8 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 			p := textparse.NewPromParser(strconv.StrToBytes(m.MetricKey))
 			_, err := p.Next()
 			if err != nil {
-				if err != io.EOF {
-					log.Errorf("NewPromParser error:%s", err.Error())
+				if err != io.EOF && errParse == nil {
+					errParse = fmt.Errorf("Parser error:%s, metiric:%s", err.Error(), m.MetricKey)
 				}
 				continue
 			}
@@ -188,21 +221,28 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) error {
 			ref, err := app.Add(lset, m.Time, m.Value)
 			if err != nil {
 				//log.Errorf("appender.Add error:%s", err.Error())
-				errRet = fmt.Errorf("appender.Add: %s", err.Error())
+				errRet = fmt.Errorf("appender.Add: %s. 198", err.Error())
 				continue
 			}
 
 			added++
 			seriesAdded++
-			w.seriesCache.add(m.MetricKey, ref, lset)
+			if hash > 0 {
+				w.seriesCache.addFast(hash, ref, lset, tSec)
+			} else {
+				w.seriesCache.add(m.MetricKey, ref, lset, tSec)
+			}
 		}
 	}
 
-	metricsPool.Put(ms[:0])
+	if errParse != nil {
+		log.Error(errParse.Error())
+	}
 
 	log.Debugf("worker: %d add:%d", w.index, added)
 	if added > 0 {
 		w.pool.Status(added, seriesAdded)
 	}
-	return errRet
+
+	return added, errRet
 }

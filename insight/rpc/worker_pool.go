@@ -5,11 +5,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"auto-insight/common/log"
-	"auto-insight/common/rpc/gen-go/metrics"
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
-const metricsCount = 64
+const metricsCount = 128
 
 var metricsPool = sync.Pool{
 	New: func() interface{} {
@@ -109,6 +109,10 @@ func (wp *WorkerPool) Write(ms *metrics.Metrics) error {
 	}
 
 	return nil
+}
+
+func (wp *WorkerPool) WriteWithDatasource(ms *metrics.Metrics, ds string) error {
+	return wp.Write(ms)
 }
 
 //使用前8个字节，计算index
