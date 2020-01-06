@@ -45,6 +45,7 @@ func NewMetricFilter(whiteListFile string, whiteListSwitcher bool) *MetricFilter
 				break
 			}
 			line = strings.Trim(line, " ")
+			line = strings.Trim(line, "\n")
 			log.Infof("Metric : %s", line)
 			mMap[line] = true
 		}
