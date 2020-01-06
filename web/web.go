@@ -381,7 +381,7 @@ func New(logger log.Logger, o *Options) *Handler {
 			insight.MetricFilter.ReloadMetricFilter()
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Prometheus is Ready.\n")
+		fmt.Fprintf(w, "Prometheus Metric Filter is Ok.\n")
 	}))
 
 	return h
