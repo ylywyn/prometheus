@@ -46,17 +46,20 @@ func (filter *MetricFilter) reloadMetricFilterFile() {
 	for {
 		line, err := rd.ReadString('\n') //以'\n'为结束符读入一行
 
-		if err != nil {
+		if err != nil && io.EOF != err {
 			log.Infof("reloadMetricFilterFile : %s", err.Error())
 			break
 		}
+		if line != "" {
+			line = strings.Trim(line, " ")
+			line = strings.Trim(line, "\n")
+			line = strings.Trim(line, "\r")
+			mMap[line] = true
+		}
+
 		if io.EOF == err {
 			break
 		}
-		line = strings.Trim(line, " ")
-		line = strings.Trim(line, "\n")
-		log.Infof("Metric : %s", line)
-		mMap[line] = true
 	}
 	log.Infof("mMap : %v", mMap)
 	filter.whiteList = mMap
