@@ -29,7 +29,7 @@ func (filter *MetricFilter) reloadMetricFilterFile() {
 	mMap := make(map[string]bool)
 
 	var err error
-	if filter.WhiteListSwitcher {
+	if !filter.WhiteListSwitcher {
 		return
 	}
 	if _, err = os.Stat(filter.WhiteListFile); err != nil {
