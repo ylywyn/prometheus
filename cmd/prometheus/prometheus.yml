@@ -27,3 +27,12 @@ scrape_configs:
 
     static_configs:
     - targets: ['localhost:9090']
+remote_read:
+  - url: http://127.0.0.1:72020/api/v1/prom/remote/read
+    read_recent: false
+remote_write:
+  - redis_addr: 10.168.99.103:12678
+    prometheus_id: influxdb
+    redis_switcher: false
+    redis_replica: 1
+    url: http://127.0.0.1:7202/api/v1/prom/remote/write
