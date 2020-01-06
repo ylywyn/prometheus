@@ -21,7 +21,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"auto-insight/common/log"
+	"auto-monitor/common/log"
 )
 
 var (
@@ -33,9 +33,10 @@ var (
 	)
 )
 
-func init(){
+func init() {
 	prometheus.MustRegister(prometheusRedisElection)
 }
+
 type RedisClientPool struct {
 	addr string
 	Name string
@@ -82,7 +83,7 @@ func (s *Switcher) judgeMaster() error {
 		log.Errorf("redis.Dial %v \n", err.Error())
 		return err
 	}
-        s.redisPool = redisPool
+	s.redisPool = redisPool
 	first := true
 	go func() {
 		f := func() {
@@ -118,7 +119,7 @@ func (s *Switcher) judgeMaster() error {
 					s.mtx.Unlock()
 				}
 			}
-			
+
 		}
 		for {
 			f()
@@ -186,4 +187,3 @@ func (p *RedisClientPool) Get() redis.Conn {
 func (p *RedisClientPool) Close() {
 	p.pool.Close()
 }
-
