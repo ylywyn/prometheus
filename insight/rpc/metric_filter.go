@@ -1,12 +1,13 @@
 package rpc
 
 import (
-	"auto-monitor/common/log"
-	"auto-monitor/common/rpc/gen-go/metrics"
 	"bufio"
 	"io"
 	"os"
 	"strings"
+
+	"auto-monitor/common/log"
+	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 type MetricFilter struct {
@@ -16,85 +17,57 @@ type MetricFilter struct {
 }
 
 func NewMetricFilter(whiteListFile string, whiteListSwitcher bool) *MetricFilter {
-	var err error
-	mMap := make(map[string]bool)
 	mf := &MetricFilter{
 		WhiteListSwitcher: whiteListSwitcher,
 		WhiteListFile:     whiteListFile,
 	}
-	if whiteListSwitcher {
-		if _, err = os.Stat(whiteListFile); err != nil {
-			log.Infof("whiteListFile doesn't exist, err: %s", err.Error())
-			goto QUIT
-		}
-		f, err := os.Open(whiteListFile)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-
-		rd := bufio.NewReader(f)
-		for {
-			line, err := rd.ReadString('\n') //以'\n'为结束符读入一行
-
-			if err != nil {
-				log.Infof("ReloadMetricFilter : %s", err.Error())
-				break
-			}
-			if io.EOF == err {
-				break
-			}
-			line = strings.Trim(line, " ")
-			line = strings.Trim(line, "\n")
-			log.Infof("Metric : %s", line)
-			mMap[line] = true
-		}
-		log.Infof("mMap : %v", mMap)
-	}
-QUIT:
-	mf.whiteList = mMap
+	mf.reloadMetricFilterFile()
 	return mf
 }
 
-func (filter *MetricFilter) ReloadMetricFilter() {
-	var err error
+func (filter *MetricFilter) reloadMetricFilterFile() {
 	mMap := make(map[string]bool)
+
+	var err error
 	if filter.WhiteListSwitcher {
-
-		if _, err = os.Stat(filter.WhiteListFile); err != nil {
-			log.Infof("whiteListFile doesn't exist, err: %s", err.Error())
-			goto QUIT
-		}
-
-		f, err := os.Open(filter.WhiteListFile)
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-
-		rd := bufio.NewReader(f)
-		for {
-			line, err := rd.ReadString('\n') //以'\n'为结束符读入一行
-
-			if err != nil {
-				log.Infof("ReloadMetricFilter : %s", err.Error())
-				break
-			}
-			if io.EOF == err {
-				break
-			}
-			line = strings.Trim(line, " ")
-			log.Infof("Metric : %s", line)
-			mMap[line] = true
-		}
-		log.Infof("mMap : %v", mMap)
+		return
 	}
-QUIT:
+	if _, err = os.Stat(filter.WhiteListFile); err != nil {
+		log.Infof("reloadMetricFilterFile doesn't exist, err: %s", err.Error())
+		return
+	}
+	f, err := os.Open(filter.WhiteListFile)
+	if err != nil {
+		log.Infof("reloadMetricFilterFile open err: %s", err.Error())
+	}
+	defer f.Close()
+
+	rd := bufio.NewReader(f)
+	for {
+		line, err := rd.ReadString('\n') //以'\n'为结束符读入一行
+
+		if err != nil {
+			log.Infof("reloadMetricFilterFile : %s", err.Error())
+			break
+		}
+		if io.EOF == err {
+			break
+		}
+		line = strings.Trim(line, " ")
+		line = strings.Trim(line, "\n")
+		log.Infof("Metric : %s", line)
+		mMap[line] = true
+	}
+	log.Infof("mMap : %v", mMap)
 	filter.whiteList = mMap
 }
 
+func (filter *MetricFilter) ReloadMetricFilter() {
+	filter.reloadMetricFilterFile()
+}
+
 func (filter *MetricFilter) GetFilteredMetrics(ms *metrics.Metrics) *metrics.Metrics {
-	if len(filter.whiteList) == 0 {
+	if filter.whiteList == nil || len(filter.whiteList) == 0 {
 		return ms
 	} else {
 		newMs := &metrics.Metrics{List: make([]*metrics.Metric, 0)}
