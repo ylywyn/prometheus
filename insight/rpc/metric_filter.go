@@ -50,10 +50,10 @@ func (filter *MetricFilter) reloadMetricFilterFile() {
 			log.Infof("reloadMetricFilterFile : %s", err.Error())
 			break
 		}
+		line = strings.Trim(line, " ")
+		line = strings.Trim(line, "\n")
+		line = strings.Trim(line, "\r")
 		if line != "" {
-			line = strings.Trim(line, " ")
-			line = strings.Trim(line, "\n")
-			line = strings.Trim(line, "\r")
 			mMap[line] = true
 		}
 
