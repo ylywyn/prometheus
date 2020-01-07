@@ -96,15 +96,15 @@ func (m *Manager) Stop() {
 	log.Info("rpc manager stop!!!")
 }
 
-func (m *Manager) MetricsFilterConfig(whiteListFile string, whiteListSwitcher bool) *MetricFilter {
-	mf := NewMetricFilter(whiteListFile, whiteListSwitcher)
+func (m *Manager) MetricsFilterConfig(whiteListFile string) *MetricFilter {
+	mf := NewMetricFilter(whiteListFile)
 	m.metricFilter = mf
 	return mf
 }
 
 func (m *Manager) WriteToRemote(ms *metrics.Metrics) {
 	if m.rpcSender != nil {
-		mList := m.metricFilter.GetFilteredMetrics(ms)
+		mList := m.metricFilter.Filter(ms)
 		if err := m.rpcSender.Send(mList); err != nil {
 			log.Errorf("write to remote error:%s", err.Error())
 		}

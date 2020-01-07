@@ -152,11 +152,8 @@ func main() {
 	a.Flag("insight.rpc-datasource", "data to gateway,need data source.").
 		Default("").StringVar(&insight.Config.Datasource)
 
-	a.Flag("insight.rpc-whitelist-file", "keep some metrics in the file.").Default("whitelist.yml").
+	a.Flag("insight.rpc-whitelist-file", "keep some metrics in the file.").Default("whitelist.conf").
 		StringVar(&insight.Config.WhiteListFile)
-
-	a.Flag("insight.rpc-whitelist-switcher", "whether to open the switcher to filter metrics.").
-		Default("false").BoolVar(&insight.Config.WhiteListSwitcher)
 
 	a.Flag("web.read-timeout",
 		"Maximum duration before timing out read of the request, and closing idle connections.").

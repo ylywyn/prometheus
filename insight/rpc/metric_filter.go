@@ -5,21 +5,21 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"auto-monitor/common/log"
 	"auto-monitor/common/rpc/gen-go/metrics"
 )
 
 type MetricFilter struct {
-	WhiteListFile     string
-	WhiteListSwitcher bool
-	whiteList         map[string]bool
+	sync.RWMutex
+	WhiteListFile string
+	whiteList     map[string]bool
 }
 
-func NewMetricFilter(whiteListFile string, whiteListSwitcher bool) *MetricFilter {
+func NewMetricFilter(whiteListFile string) *MetricFilter {
 	mf := &MetricFilter{
-		WhiteListSwitcher: whiteListSwitcher,
-		WhiteListFile:     whiteListFile,
+		WhiteListFile: whiteListFile,
 	}
 	mf.reloadMetricFilterFile()
 	return mf
@@ -29,28 +29,25 @@ func (filter *MetricFilter) reloadMetricFilterFile() {
 	mMap := make(map[string]bool)
 
 	var err error
-	if !filter.WhiteListSwitcher {
-		return
-	}
 	if _, err = os.Stat(filter.WhiteListFile); err != nil {
-		log.Infof("reloadMetricFilterFile doesn't exist, err: %s", err.Error())
+		log.Errorf("reloadMetricFilterFile doesn't exist, err: %s", err.Error())
 		return
 	}
 	f, err := os.Open(filter.WhiteListFile)
 	if err != nil {
-		log.Infof("reloadMetricFilterFile open err: %s", err.Error())
+		log.Errorf("reloadMetricFilterFile open err: %s", err.Error())
+		return
 	}
 	defer f.Close()
 
 	rd := bufio.NewReader(f)
 	for {
 		line, err := rd.ReadString('\n') //以'\n'为结束符读入一行
-
 		if err != nil && io.EOF != err {
 			log.Infof("reloadMetricFilterFile : %s", err.Error())
 			break
 		}
-		line = strings.Trim(line, " ")
+		line = strings.TrimSpace(line)
 		line = strings.Trim(line, "\n")
 		line = strings.Trim(line, "\r")
 		if line != "" {
@@ -61,37 +58,38 @@ func (filter *MetricFilter) reloadMetricFilterFile() {
 			break
 		}
 	}
-	log.Infof("mMap : %v", mMap)
+
+	log.Infof("filter map: %v", mMap)
+	filter.Lock()
 	filter.whiteList = mMap
+	filter.Unlock()
 }
 
 func (filter *MetricFilter) ReloadMetricFilter() {
 	filter.reloadMetricFilterFile()
 }
 
-func (filter *MetricFilter) GetFilteredMetrics(ms *metrics.Metrics) *metrics.Metrics {
-	if filter.whiteList == nil || len(filter.whiteList) == 0 {
-		return ms
-	} else {
-		newMs := &metrics.Metrics{List: make([]*metrics.Metric, 0)}
-		for _, metric := range ms.List {
-			if filter.checkIsInWhiteList(metric) {
-				newMs.List = append(newMs.List, metric)
-			}
-		}
-		return newMs
-	}
-}
+func (filter *MetricFilter) Filter(ms *metrics.Metrics) *metrics.Metrics {
+	filter.RLock()
+	whiteList := filter.whiteList
+	filter.RUnlock()
 
-func (filter *MetricFilter) checkIsInWhiteList(metric *metrics.Metric) bool {
-	mKey := metric.MetricKey
-	index := strings.Index(mKey, "{")
-	if index >= 0 {
-		mKey = mKey[:index]
+	if len(whiteList) == 0 {
+		return ms
 	}
-	if _, in := filter.whiteList[mKey]; in {
-		return true
-	} else {
-		return false
+
+	newMs := &metrics.Metrics{List: make([]*metrics.Metric, 0)}
+	for _, metric := range ms.List {
+		mKey := metric.MetricKey
+		index := strings.Index(mKey, "{")
+		if index >= 0 {
+			mKey = mKey[:index]
+		}
+		if _, in := whiteList[mKey]; in {
+			newMs.List = append(newMs.List, metric)
+		}
 	}
+
+	//log.Infof("metrircs00000:%v", newMs.List)
+	return newMs
 }
