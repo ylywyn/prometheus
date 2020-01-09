@@ -377,10 +377,16 @@ func New(logger log.Logger, o *Options) *Handler {
 
 	// reload metric filter
 	router.Get("/metric-filter/reload", readyf(func(w http.ResponseWriter, r *http.Request) {
+		var err error
 		if insight.MetricFilter != nil {
-			insight.MetricFilter.ReloadMetricFilter()
+			err = insight.MetricFilter.ReloadMetricFilter()
 		}
-		w.WriteHeader(http.StatusOK)
+		if err == nil {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
 		fmt.Fprintf(w, "Prometheus Metric Filter is Ok.\n")
 	}))
 

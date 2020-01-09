@@ -25,18 +25,18 @@ func NewMetricFilter(whiteListFile string) *MetricFilter {
 	return mf
 }
 
-func (filter *MetricFilter) reloadMetricFilterFile() {
+func (filter *MetricFilter) reloadMetricFilterFile() error {
 	mMap := make(map[string]bool)
 
 	var err error
 	if _, err = os.Stat(filter.WhiteListFile); err != nil {
 		log.Errorf("reloadMetricFilterFile doesn't exist, err: %s", err.Error())
-		return
+		return err
 	}
 	f, err := os.Open(filter.WhiteListFile)
 	if err != nil {
 		log.Errorf("reloadMetricFilterFile open err: %s", err.Error())
-		return
+		return err
 	}
 	defer f.Close()
 
@@ -47,26 +47,33 @@ func (filter *MetricFilter) reloadMetricFilterFile() {
 			log.Infof("reloadMetricFilterFile : %s", err.Error())
 			break
 		}
+
+		if io.EOF == err {
+			break
+		}
+
 		line = strings.TrimSpace(line)
 		line = strings.Trim(line, "\n")
 		line = strings.Trim(line, "\r")
 		if line != "" {
 			mMap[line] = true
 		}
-
-		if io.EOF == err {
-			break
-		}
 	}
 
-	log.Infof("filter map: %v", mMap)
+	log.Info("filter map:")
+	for k, _ := range mMap {
+		log.Infof("%s", k)
+	}
+
 	filter.Lock()
 	filter.whiteList = mMap
 	filter.Unlock()
+
+	return nil
 }
 
-func (filter *MetricFilter) ReloadMetricFilter() {
-	filter.reloadMetricFilterFile()
+func (filter *MetricFilter) ReloadMetricFilter() error {
+	return filter.reloadMetricFilterFile()
 }
 
 func (filter *MetricFilter) Filter(ms *metrics.Metrics) *metrics.Metrics {
@@ -78,7 +85,7 @@ func (filter *MetricFilter) Filter(ms *metrics.Metrics) *metrics.Metrics {
 		return ms
 	}
 
-	newMs := &metrics.Metrics{List: make([]*metrics.Metric, 0)}
+	newMs := &metrics.Metrics{List: make([]*metrics.Metric, 0, len(ms.List)/3)}
 	for _, metric := range ms.List {
 		mKey := metric.MetricKey
 		index := strings.Index(mKey, "{")
