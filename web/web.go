@@ -55,6 +55,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/insight"
 	"github.com/prometheus/prometheus/notifier"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/rules"
@@ -372,6 +373,15 @@ func New(logger log.Logger, o *Options) *Handler {
 	router.Get("/-/ready", readyf(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Prometheus is Ready.\n")
+	}))
+
+	// reload metric filter
+	router.Get("/metric-filter/reload", readyf(func(w http.ResponseWriter, r *http.Request) {
+		if insight.MetricFilter != nil {
+			insight.MetricFilter.ReloadMetricFilter()
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Prometheus Metric Filter is Ok.\n")
 	}))
 
 	return h

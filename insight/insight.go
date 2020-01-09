@@ -10,12 +10,15 @@ var (
 	Config InsightConfig
 
 	Manager *rpc.Manager
+
+	MetricFilter *rpc.MetricFilter
 )
 
 type InsightConfig struct {
 	RpcListenAddr       string
 	RemoteRpcServerAddr string
 	Datasource          string
+	WhiteListFile       string
 }
 
 func SetLog(level string) {
@@ -29,6 +32,9 @@ func RpcManagerRun(appender rpc.Appendable) error {
 		log.Errorf("NewRpcManager error: %s", err.Error())
 		return err
 	}
+	//metric指标的过滤配置
+	MetricFilter = Manager.MetricsFilterConfig(Config.WhiteListFile)
+
 	if err = Manager.Start(); err != nil {
 		log.Errorf("RpcManagerStart error: %s", err.Error())
 		return err
