@@ -28,6 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/prometheus/prometheus/pkg/exemplar"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/value"
 )
@@ -50,7 +51,7 @@ const (
 	tHelp
 	tType
 	tUnit
-	tEofWord
+	tEOFWord
 	tText
 	tComment
 	tBlank
@@ -81,7 +82,7 @@ func (t token) String() string {
 		return "TYPE"
 	case tUnit:
 		return "UNIT"
-	case tEofWord:
+	case tEOFWord:
 		return "EOFWORD"
 	case tText:
 		return "TEXT"
@@ -153,7 +154,7 @@ type PromParser struct {
 	offsets []int
 }
 
-// New returns a new parser of the byte slice.
+// NewPromParser returns a new parser of the byte slice.
 func NewPromParser(b []byte) Parser {
 	return &PromParser{l: &promlexer{b: append(b, '\n')}}
 }
@@ -232,6 +233,12 @@ func (p *PromParser) Metric(l *labels.Labels) string {
 	sort.Sort(*l)
 
 	return s
+}
+
+// Exemplar writes the exemplar of the current sample into the passed
+// exemplar. It returns if an exemplar exists.
+func (p *PromParser) Exemplar(e *exemplar.Exemplar) bool {
+	return false
 }
 
 // nextToken returns the next token from the promlexer. It skips over tabs

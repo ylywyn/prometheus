@@ -39,11 +39,11 @@ var userAgent = fmt.Sprintf("Prometheus/%s", version.Version)
 
 // Client allows reading and writing from/to a remote HTTP endpoint.
 type Client struct {
-	index    int // Used to differentiate clients in metrics.
-	url      *config_util.URL
-	client   *http.Client
-	timeout  time.Duration
-	switcher *Switcher
+	remoteName string // Used to differentiate clients in metrics.
+	url        *config_util.URL
+	client     *http.Client
+	timeout    time.Duration
+	switcher   *Switcher
 }
 
 // ClientConfig configures a Client.
@@ -58,7 +58,7 @@ type ClientConfig struct {
 }
 
 // NewClient creates a new Client.
-func NewClient(index int, conf *ClientConfig) (*Client, error) {
+func NewClient(remoteName string, conf *ClientConfig) (*Client, error) {
 	httpClient, err := config_util.NewClientFromConfig(conf.HTTPClientConfig, "remote_storage", false)
 	if err != nil {
 		return nil, err
@@ -69,11 +69,11 @@ func NewClient(index int, conf *ClientConfig) (*Client, error) {
 		panic(err)
 	}
 	return &Client{
-		index:    index,
-		url:      conf.URL,
-		client:   httpClient,
-		timeout:  time.Duration(conf.Timeout),
-		switcher: switcher,
+		remoteName: remoteName,
+		url:        conf.URL,
+		client:     httpClient,
+		timeout:    time.Duration(conf.Timeout),
+		switcher:   switcher,
 	}, nil
 }
 
@@ -90,7 +90,7 @@ func (c *Client) Store(ctx context.Context, req []byte) error {
 	}
 	httpReq, err := http.NewRequest("POST", c.url.String(), bytes.NewReader(req))
 	if err != nil {
-		// Errors from NewRequest are from unparseable URLs, so are not
+		// Errors from NewRequest are from unparsable URLs, so are not
 		// recoverable.
 		return err
 	}
@@ -98,9 +98,8 @@ func (c *Client) Store(ctx context.Context, req []byte) error {
 	httpReq.Header.Set("Content-Type", "application/x-protobuf")
 	httpReq.Header.Set("User-Agent", userAgent)
 	httpReq.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
-	httpReq = httpReq.WithContext(ctx)
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
 	httpResp, err := c.client.Do(httpReq.WithContext(ctx))
@@ -128,9 +127,14 @@ func (c *Client) Store(ctx context.Context, req []byte) error {
 	return err
 }
 
-// Name identifies the client.
+// Name uniquely identifies the client.
 func (c Client) Name() string {
-	return fmt.Sprintf("%d:%s", c.index, c.url)
+	return c.remoteName
+}
+
+// Endpoint is the remote read or write endpoint.
+func (c Client) Endpoint() string {
+	return c.url.String()
 }
 
 // Read reads from a remote endpoint.

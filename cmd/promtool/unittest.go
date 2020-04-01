@@ -31,6 +31,7 @@ import (
 
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/promql"
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/rules"
 	"github.com/prometheus/prometheus/storage"
 )
@@ -79,7 +80,7 @@ func ruleUnitTest(filename string) []error {
 	}
 
 	// Bounds for evaluating the rules.
-	mint := time.Unix(0, 0)
+	mint := time.Unix(0, 0).UTC()
 	maxd := unitTestInp.maxEvalTime()
 	maxt := mint.Add(maxd)
 	// Rounding off to nearest Eval time (> maxt).
@@ -144,6 +145,9 @@ func resolveAndGlobFilepaths(baseDir string, utf *unitTestFile) error {
 		m, err := filepath.Glob(rf)
 		if err != nil {
 			return err
+		}
+		if len(m) <= 0 {
+			fmt.Fprintln(os.Stderr, "  WARNING: no file match pattern", rf)
 		}
 		globbedFiles = append(globbedFiles, m...)
 	}
@@ -228,7 +232,7 @@ func (tg *testGroup) test(mint, maxt time.Time, evalInterval time.Duration, grou
 				for _, r := range g.Rules() {
 					if r.LastError() != nil {
 						errs = append(errs, errors.Errorf("    rule: %s, time: %s, err: %v",
-							r.Name(), ts.Sub(time.Unix(0, 0)), r.LastError()))
+							r.Name(), ts.Sub(time.Unix(0, 0).UTC()), r.LastError()))
 					}
 				}
 			}
@@ -321,7 +325,7 @@ Outer:
 		got, err := query(suite.Context(), testCase.Expr, mint.Add(testCase.EvalTime),
 			suite.QueryEngine(), suite.Queryable())
 		if err != nil {
-			errs = append(errs, errors.Errorf("    expr:'%s', time:%s, err:%s", testCase.Expr,
+			errs = append(errs, errors.Errorf("    expr: %q, time: %s, err: %s", testCase.Expr,
 				testCase.EvalTime.String(), err.Error()))
 			continue
 		}
@@ -336,9 +340,10 @@ Outer:
 
 		var expSamples []parsedSample
 		for _, s := range testCase.ExpSamples {
-			lb, err := promql.ParseMetric(s.Labels)
+			lb, err := parser.ParseMetric(s.Labels)
 			if err != nil {
-				errs = append(errs, errors.Errorf("    expr:'%s', time:%s, err:%s", testCase.Expr,
+				err = errors.Wrapf(err, "labels %q", s.Labels)
+				errs = append(errs, errors.Errorf("    expr: %q, time: %s, err: %s", testCase.Expr,
 					testCase.EvalTime.String(), err.Error()))
 				continue Outer
 			}
@@ -355,7 +360,7 @@ Outer:
 			return labels.Compare(gotSamples[i].Labels, gotSamples[j].Labels) <= 0
 		})
 		if !reflect.DeepEqual(expSamples, gotSamples) {
-			errs = append(errs, errors.Errorf("    expr:'%s', time:%s, \n        exp:%#v, \n        got:%#v", testCase.Expr,
+			errs = append(errs, errors.Errorf("    expr: %q, time: %s,\n        exp:%#v\n        got:%#v", testCase.Expr,
 				testCase.EvalTime.String(), parsedSamplesString(expSamples), parsedSamplesString(gotSamples)))
 		}
 	}
@@ -510,7 +515,7 @@ func parsedSamplesString(pss []parsedSample) string {
 		return "nil"
 	}
 	s := pss[0].String()
-	for _, ps := range pss[0:] {
+	for _, ps := range pss[1:] {
 		s += ", " + ps.String()
 	}
 	return s

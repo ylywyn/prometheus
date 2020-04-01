@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api_v2
+package apiv2
 
 import (
 	"context"
@@ -26,14 +26,15 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/pkg/errors"
-	"github.com/prometheus/prometheus/tsdb"
-	tsdbLabels "github.com/prometheus/prometheus/tsdb/labels"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/timestamp"
 	pb "github.com/prometheus/prometheus/prompb"
+	"github.com/prometheus/prometheus/tsdb"
 )
 
 // API encapsulates all API services.
@@ -103,8 +104,8 @@ func extractTimeRange(min, max *time.Time) (mint, maxt time.Time, err error) {
 }
 
 var (
-	minTime = time.Unix(math.MinInt64/1000+62135596801, 0)
-	maxTime = time.Unix(math.MaxInt64/1000-62135596801, 999999999)
+	minTime = time.Unix(math.MinInt64/1000+62135596801, 0).UTC()
+	maxTime = time.Unix(math.MaxInt64/1000-62135596801, 999999999).UTC()
 )
 
 var (
@@ -186,30 +187,27 @@ func (s *Admin) DeleteSeries(_ context.Context, r *pb.SeriesDeleteRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	var matchers tsdbLabels.Selector
+	var matchers []*labels.Matcher
 
 	for _, m := range r.Matchers {
-		var lm tsdbLabels.Matcher
+		var lm *labels.Matcher
 		var err error
 
 		switch m.Type {
 		case pb.LabelMatcher_EQ:
-			lm = tsdbLabels.NewEqualMatcher(m.Name, m.Value)
+			lm, err = labels.NewMatcher(labels.MatchEqual, m.Name, m.Value)
 		case pb.LabelMatcher_NEQ:
-			lm = tsdbLabels.Not(tsdbLabels.NewEqualMatcher(m.Name, m.Value))
+			lm, err = labels.NewMatcher(labels.MatchNotEqual, m.Name, m.Value)
 		case pb.LabelMatcher_RE:
-			lm, err = tsdbLabels.NewRegexpMatcher(m.Name, m.Value)
-			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "bad regexp matcher: %s", err)
-			}
+			lm, err = labels.NewMatcher(labels.MatchRegexp, m.Name, m.Value)
 		case pb.LabelMatcher_NRE:
-			lm, err = tsdbLabels.NewRegexpMatcher(m.Name, m.Value)
-			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "bad regexp matcher: %s", err)
-			}
-			lm = tsdbLabels.Not(lm)
+			lm, err = labels.NewMatcher(labels.MatchNotRegexp, m.Name, m.Value)
 		default:
 			return nil, status.Error(codes.InvalidArgument, "unknown matcher type")
+		}
+
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "bad matcher: %s", err)
 		}
 
 		matchers = append(matchers, lm)
