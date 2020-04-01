@@ -1110,7 +1110,7 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 	if count == 0 {
 		count = 256
 	}
-	ms := make([]*metrics.Metric, 0, count)
+	ms := make([]*metrics.Metric, 0, count+16)
 	addFun := func(key string, t int64, v float64) {
 		m := &metrics.Metric{
 			Time:      t,
@@ -1453,6 +1453,7 @@ func labelsKey(lset labels.Labels) string {
 	}
 
 	var b bytes.Buffer
+	b.Grow(len(lset) * 32)
 	b.WriteString(lset[0].Value)
 	b.WriteByte('{')
 	for i, l := range lset[1:] {
