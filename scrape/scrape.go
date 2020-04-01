@@ -48,6 +48,7 @@ import (
 	"github.com/prometheus/prometheus/storage"
 
 	"auto-monitor/common/rpc/gen-go/metrics"
+	"github.com/prometheus/prometheus/insight"
 )
 
 var errNameLabelMandatory = fmt.Errorf("missing metric name (%s label)", labels.MetricName)
@@ -1236,6 +1237,11 @@ loop:
 		level.Warn(sl.l).Log("msg", "Error on ingesting samples that are too old or are too far into the future", "num_dropped", appErrs.numOutOfBounds)
 	}
 	if err == nil {
+		if insight.Manager != nil && insight.Manager.SendRemote() {
+			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
+			sl.lastScrapeCount = total
+		}
+
 		sl.cache.forEachStale(func(lset labels.Labels) bool {
 			// Series no longer exposed, mark it stale.
 			_, err = app.Add(lset, defTime, math.Float64frombits(value.StaleNaN))
