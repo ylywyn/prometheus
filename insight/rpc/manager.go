@@ -12,7 +12,7 @@ import (
 )
 
 type Appendable interface {
-	Appender() (storage.Appender, error)
+	Appender() storage.Appender
 }
 
 type Manager struct {
