@@ -1098,6 +1098,7 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 		sampleLimitErr error
 	)
 
+	lostIndexCount := 0
 	defer func() {
 		if err != nil {
 			app.Rollback()
@@ -1109,6 +1110,10 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 		// Only perform cache cleaning if the scrape was not empty.
 		// An empty scrape (usually) is used to indicate a failed scrape.
 		sl.cache.iterDone(len(b) > 0)
+
+		if lostIndexCount > 0 {
+			level.Warn(sl.l).Log("msg", "Warn on relabels ", "lostIndexCount", lostIndexCount)
+		}
 	}()
 
 	//for send to remote
@@ -1127,13 +1132,19 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 	}
 	ms := make([]*metrics.Metric, 0, count+16)
 	addFun := func(ce *cacheEntry, t int64, v float64) {
-		if len(ce.key) == 0 {
-			ce.key = labelsKey(ce.lset, &readRelabelMap)
+		key := ce.key
+		if len(key) == 0 {
+			lostIndex := false
+			if key, lostIndex = labelsKey(ce.lset, readRelabelMap); lostIndex {
+				lostIndexCount += 1
+			} else {
+				ce.key = key
+			}
 		}
 		m := &metrics.Metric{
 			Time:      t,
 			Value:     v,
-			MetricKey: ce.key,
+			MetricKey: key,
 		}
 		ms = append(ms, m)
 	}
@@ -1481,15 +1492,16 @@ func reusableCache(r, l *config.ScrapeConfig) bool {
 	return reflect.DeepEqual(zeroConfig(r), zeroConfig(l))
 }
 
-func labelsKey(lset labels.Labels, podMap *map[string]*insight.AppEnv) string {
+func labelsKey(lset labels.Labels, podMap map[string]*insight.AppEnv) (string, bool) {
 	if len(lset) == 1 {
-		return lset[0].Value + " 0"
+		return lset[0].Value + " 0", false
 	}
 
 	//是否含有pod,pod_name
 	var reDefineLbs []byte
+	var lostIndex bool
 	if lset[0].Value != kubePodLabels {
-		reDefineLbs, _ = insight.Relabel(lset, podMap)
+		reDefineLbs, lostIndex = insight.Relabel(lset, podMap)
 	}
 
 	var b bytes.Buffer
@@ -1508,7 +1520,7 @@ func labelsKey(lset labels.Labels, podMap *map[string]*insight.AppEnv) string {
 	}
 
 	b.WriteString("} 0")
-	return b.String()
+	return b.String(), lostIndex
 }
 
 func oldLables(lset labels.Labels, b *bytes.Buffer) {

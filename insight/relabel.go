@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	withOldLabels int32
+	withOldLabels int32 = 0
 	RelabelMap    *PodAppEnvMap
 )
 
@@ -114,7 +114,8 @@ func PodInfo(lset labels.Labels) *AppEnv {
 	return info
 }
 
-func Relabel(lset labels.Labels, podInfoMap *map[string]*AppEnv) ([]byte, bool) {
+//返回的bool：是否缺失索引，缺失的话，不建立缓存
+func Relabel(lset labels.Labels, podInfoMap map[string]*AppEnv) ([]byte, bool) {
 	podName := lset.Get(podLabel)
 	if len(podName) == 0 {
 		podName = lset.Get("pod_name")
@@ -123,19 +124,12 @@ func Relabel(lset labels.Labels, podInfoMap *map[string]*AppEnv) ([]byte, bool) 
 		}
 	}
 
-	appEnv, ok := (*podInfoMap)[podName]
+	appEnv, ok := podInfoMap[podName]
 	if !ok {
-		//重新获取字典，查看
-		temp := RelabelMap.GetMap()
-		*podInfoMap = temp
-
-		appEnv, ok = temp[podName]
-		if !ok {
-			return nil, false
-		}
+		return nil, true
 	}
 
-	return appEnv.ToBytes(), true
+	return appEnv.ToBytes(), false
 }
 
 func WithOldLabels() bool {
