@@ -48,15 +48,15 @@ func (filter *MetricFilter) reloadMetricFilterFile() error {
 			break
 		}
 
-		if io.EOF == err {
-			break
-		}
-
 		line = strings.TrimSpace(line)
 		line = strings.Trim(line, "\n")
 		line = strings.Trim(line, "\r")
 		if line != "" {
 			mMap[line] = true
+		}
+
+		if io.EOF == err {
+			break
 		}
 	}
 
@@ -99,4 +99,12 @@ func (filter *MetricFilter) Filter(ms *metrics.Metrics) *metrics.Metrics {
 
 	//log.Infof("metrircs00000:%v", newMs.List)
 	return newMs
+}
+
+func (filter *MetricFilter) FilterMap() map[string]bool {
+	filter.RLock()
+	whiteList := filter.whiteList
+	filter.RUnlock()
+
+	return whiteList
 }

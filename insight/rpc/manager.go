@@ -104,8 +104,9 @@ func (m *Manager) MetricsFilterConfig(whiteListFile string) *MetricFilter {
 
 func (m *Manager) WriteToRemote(ms *metrics.Metrics) {
 	if m.rpcSender != nil {
-		mList := m.metricFilter.Filter(ms)
-		if err := m.rpcSender.Send(mList); err != nil {
+		//这里注释了， 在抓取端过滤了
+		//mList := m.metricFilter.Filter(ms)
+		if err := m.rpcSender.Send(ms); err != nil {
 			log.Errorf("write to remote error:%s", err.Error())
 		}
 	}

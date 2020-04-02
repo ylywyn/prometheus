@@ -51,6 +51,10 @@ import (
 	"github.com/prometheus/prometheus/insight"
 )
 
+const (
+	kubePodLabels = "kube_pod_labels"
+)
+
 var errNameLabelMandatory = fmt.Errorf("missing metric name (%s label)", labels.MetricName)
 
 var (
@@ -629,6 +633,9 @@ type scrapeLoop struct {
 
 	disabledEndOfRunStalenessMarkers bool
 	lastScrapeCount                  int
+
+	//-1:不含有kubePodLabels  1：含有
+	kubePodLabelsStatus int
 }
 
 // scrapeCache tracks mappings of exposed metric strings to label sets and
@@ -748,7 +755,6 @@ func (c *scrapeCache) addRef(met string, ref uint64, lset labels.Labels, hash ui
 		return nil
 	}
 	ce := &cacheEntry{ref: ref, lastIter: c.iter, lset: lset, hash: hash}
-	ce.key = labelsKey(lset)
 	c.series[met] = ce
 	return ce
 }
@@ -1106,16 +1112,28 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 	}()
 
 	//for send to remote
+	//白名单
+	var whiteList map[string]bool
+	if insight.MetricFilter != nil {
+		whiteList = insight.MetricFilter.FilterMap()
+	}
+	//appEnv映射map
+	writeRelabelMap := make(map[string]*insight.AppEnv)
+	readRelabelMap := insight.RelabelMap.GetMap()
+
 	count := sl.lastScrapeCount
 	if count == 0 {
 		count = 256
 	}
 	ms := make([]*metrics.Metric, 0, count+16)
-	addFun := func(key string, t int64, v float64) {
+	addFun := func(ce *cacheEntry, t int64, v float64) {
+		if len(ce.key) == 0 {
+			ce.key = labelsKey(ce.lset, &readRelabelMap)
+		}
 		m := &metrics.Metric{
 			Time:      t,
 			Value:     v,
-			MetricKey: key,
+			MetricKey: ce.key,
 		}
 		ms = append(ms, m)
 	}
@@ -1205,9 +1223,19 @@ loop:
 				// Bypass staleness logic if there is an explicit timestamp.
 				sl.cache.trackStaleness(hash, lset)
 			}
+
 			ce = sl.cache.addRef(mets, ref, lset, hash)
 			if sampleAdded && sampleLimitErr == nil {
 				seriesAdded++
+			}
+
+			//建立pod-app-env索引
+			if sl.kubePodLabelsStatus == 0 {
+				if hasKubePodMetrics(lset) {
+					sl.kubePodLabelsStatus = 1
+				} else {
+					sl.kubePodLabelsStatus = -1
+				}
 			}
 		}
 
@@ -1217,7 +1245,21 @@ loop:
 		}
 
 		if insight.Manager != nil && insight.Manager.SendRemote() && ce != nil {
-			addFun(ce.key, t, v)
+			if sl.kubePodLabelsStatus == 1 && ce.lset[0].Value == kubePodLabels {
+				podInfo := insight.PodInfo(ce.lset)
+				if podInfo != nil {
+					writeRelabelMap[podInfo.Pod] = podInfo
+				}
+			}
+
+			if whiteList == nil {
+				addFun(ce, t, v)
+			} else {
+				//应用白名单
+				if _, ok := whiteList[ce.lset[0].Value]; ok {
+					addFun(ce, t, v)
+				}
+			}
 		}
 	}
 	if sampleLimitErr != nil {
@@ -1238,6 +1280,10 @@ loop:
 	}
 	if err == nil {
 		if insight.Manager != nil && insight.Manager.SendRemote() {
+			if sl.kubePodLabelsStatus == 1 && len(writeRelabelMap) > 0 {
+				//是kube-status-metrics才更新索引
+				insight.RelabelMap.SetMap(writeRelabelMap)
+			}
 			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
 			sl.lastScrapeCount = total
 		}
@@ -1379,18 +1425,6 @@ func (sl *scrapeLoop) addReportSample(app storage.Appender, s string, t int64, v
 	ce, ok := sl.cache.get(s)
 	if ok {
 		err := app.AddFast(ce.ref, t, v)
-
-		ms := make([]*metrics.Metric, 0, 1)
-		m := &metrics.Metric{
-			Time:      t,
-			Value:     v,
-			MetricKey: ce.key,
-		}
-		ms = append(ms, m)
-		if insight.Manager != nil && insight.Manager.SendRemote() {
-			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
-		}
-
 		switch errors.Cause(err) {
 		case nil:
 			return nil
@@ -1447,16 +1481,38 @@ func reusableCache(r, l *config.ScrapeConfig) bool {
 	return reflect.DeepEqual(zeroConfig(r), zeroConfig(l))
 }
 
-func labelsKey(lset labels.Labels) string {
+func labelsKey(lset labels.Labels, podMap *map[string]*insight.AppEnv) string {
 	if len(lset) == 1 {
-		return lset[0].Name + " 0"
+		return lset[0].Value + " 0"
+	}
+
+	//是否含有pod,pod_name
+	var reDefineLbs []byte
+	if lset[0].Value != kubePodLabels {
+		reDefineLbs, _ = insight.Relabel(lset, podMap)
 	}
 
 	var b bytes.Buffer
 	b.Grow(len(lset) * 32)
 	b.WriteString(lset[0].Value)
 	b.WriteByte('{')
-	for i, l := range lset[1:] {
+
+	if len(reDefineLbs) > 0 {
+		b.Write(reDefineLbs)
+		if insight.WithOldLabels() {
+			b.WriteByte(',')
+			oldLables(lset[1:], &b)
+		}
+	} else {
+		oldLables(lset[1:], &b)
+	}
+
+	b.WriteString("} 0")
+	return b.String()
+}
+
+func oldLables(lset labels.Labels, b *bytes.Buffer) {
+	for i, l := range lset {
 		if i > 0 {
 			b.WriteByte(',')
 			b.WriteByte(' ')
@@ -1465,7 +1521,13 @@ func labelsKey(lset labels.Labels) string {
 		b.WriteByte('=')
 		b.WriteString(strconv.Quote(l.Value))
 	}
+}
 
-	b.WriteString("} 0")
-	return b.String()
+func hasLabel(lset labels.Labels, k, v string) bool {
+	return lset.Get(k) == v
+}
+
+//含有这两个标签，说明是 kube-state-metrics的 metric所在
+func hasKubePodMetrics(lset labels.Labels) bool {
+	return hasLabel(lset, "job", "kube-state-metrics") && hasLabel(lset, "endpoint", "https-main")
 }
