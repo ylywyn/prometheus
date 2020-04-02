@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/prometheus/prometheus/pkg/labels"
 )
@@ -21,6 +22,8 @@ const (
 	envIdLabel = "label_env_id"
 
 	metricsKey = `app="%s",app_id="%s",env="%s",env_id="%s",pod="%s"`
+
+	cacheMissTime = 180
 )
 
 func init() {
@@ -51,12 +54,17 @@ func (e *AppEnv) toBytes() []byte {
 
 type PodAppEnvMap struct {
 	sync.Mutex
-	dic map[string]*AppEnv
+	dic   map[string]*AppEnv
+	count int64
+
+	cacheMu sync.Mutex
+	cache   map[string]int64
 }
 
 func NewPodAppEnvMap() *PodAppEnvMap {
 	m := &PodAppEnvMap{
-		dic: make(map[string]*AppEnv),
+		dic:   make(map[string]*AppEnv),
+		cache: make(map[string]int64),
 	}
 	return m
 }
@@ -68,9 +76,41 @@ func (m *PodAppEnvMap) GetMap() map[string]*AppEnv {
 }
 
 func (m *PodAppEnvMap) SetMap(d map[string]*AppEnv) {
+	var count int64
 	m.Lock()
 	m.dic = d
+	m.count += 1
+	count = m.count
 	m.Unlock()
+
+	if count%60 == 0 {
+		m.cleanCacheCount()
+	}
+}
+
+//控制pod 索引未建立起来时，key缓存是否存在（默认找3分钟， 不存在则建立原始缓存）
+func (m *PodAppEnvMap) addCacheCount(pod string) bool {
+	now := time.Now().Unix()
+
+	m.cacheMu.Lock()
+	defer m.cacheMu.Unlock()
+
+	t, ok := m.cache[pod]
+	if ok {
+		if now-t > cacheMissTime {
+			delete(m.cache, pod)
+			return false
+		}
+	} else {
+		m.cache[pod] = now
+	}
+	return true
+}
+
+func (m *PodAppEnvMap) cleanCacheCount() {
+	m.cacheMu.Lock()
+	m.cache = make(map[string]int64)
+	m.cacheMu.Unlock()
 }
 
 func PodInfo(lset labels.Labels) *AppEnv {
@@ -126,7 +166,11 @@ func Relabel(lset labels.Labels, podInfoMap map[string]*AppEnv) ([]byte, bool) {
 
 	appEnv, ok := podInfoMap[podName]
 	if !ok {
-		return nil, true
+		if RelabelMap.addCacheCount(podName) {
+			return nil, true
+		} else {
+			return nil, false
+		}
 	}
 
 	return appEnv.ToBytes(), false
