@@ -1527,7 +1527,6 @@ func oldLables(lset labels.Labels, b *bytes.Buffer) {
 	for i, l := range lset {
 		if i > 0 {
 			b.WriteByte(',')
-			b.WriteByte(' ')
 		}
 		b.WriteString(l.Name)
 		b.WriteByte('=')

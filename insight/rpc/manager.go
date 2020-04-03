@@ -91,6 +91,10 @@ func (m *Manager) Stop() {
 		if m.rpcSender != nil {
 			m.rpcSender.Stop()
 		}
+
+		if m.metricFilter != nil {
+			m.metricFilter.StopLoop()
+		}
 	}
 
 	log.Info("rpc manager stop!!!")

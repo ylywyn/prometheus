@@ -21,7 +21,7 @@ const (
 	envLabel   = "label_env_name"
 	envIdLabel = "label_env_id"
 
-	metricsKey = `app="%s",app_id="%s",env="%s",env_id="%s",pod="%s"`
+	metricsKey = `app_l="%s",app_id_l="%s",env_l="%s",env_id_l="%s",pod_l="%s"`
 
 	cacheMissTime = 180
 )

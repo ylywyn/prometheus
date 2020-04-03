@@ -510,6 +510,7 @@ func main() {
 			close(reloadReady.C)
 		})
 	}
+	loadConfigError := false
 
 	var g run.Group
 	{
@@ -638,6 +639,7 @@ func main() {
 				}
 
 				if err := reloadConfig(cfg.configFile, logger, reloaders...); err != nil {
+					loadConfigError = true
 					return errors.Wrapf(err, "error loading config from %q", cfg.configFile)
 				}
 
@@ -763,6 +765,9 @@ func main() {
 				insight.SetLog(cfg.promlogConfig.Level.String())
 
 				<-reloadReady.C
+				if loadConfigError {
+					return errors.New("loadConfigError")
+				}
 				if err := insight.RpcManagerRun(fanoutStorage); err != nil {
 					level.Error(logger).Log("insight.RpcManagerRun err", err)
 					return err
