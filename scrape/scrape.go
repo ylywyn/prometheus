@@ -1263,7 +1263,7 @@ loop:
 				}
 			}
 
-			if whiteList == nil {
+			if len(whiteList) == 0 {
 				addFun(ce, t, v)
 			} else {
 				//应用白名单

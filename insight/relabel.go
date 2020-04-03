@@ -128,20 +128,13 @@ func PodInfo(lset labels.Labels) *AppEnv {
 		return nil
 	}
 
-	appId := lbMap[appIdLabel]
-	if len(appId) == 0 {
-		return nil
-	}
-
 	env := lbMap[envLabel]
 	if len(env) == 0 {
 		return nil
 	}
 
+	appId := lbMap[appIdLabel]
 	envId := lbMap[envIdLabel]
-	if len(envId) == 0 {
-		return nil
-	}
 
 	info := &AppEnv{
 		App:   app,
