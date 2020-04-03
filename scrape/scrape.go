@@ -1112,7 +1112,7 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 		sl.cache.iterDone(len(b) > 0)
 
 		if lostIndexCount > 0 {
-			level.Warn(sl.l).Log("msg", "Warn on relabels ", "lostIndexCount", lostIndexCount)
+			level.Warn(sl.l).Log("msg", "Warn on relabels ", "lost index metrics count", lostIndexCount)
 		}
 	}()
 
@@ -1294,6 +1294,7 @@ loop:
 			if sl.kubePodLabelsStatus == 1 && len(writeRelabelMap) > 0 {
 				//是kube-status-metrics才更新索引
 				insight.RelabelMap.SetMap(writeRelabelMap)
+				level.Info(sl.l).Log("msg", "Index on relabels ", "Index Pod Count", len(writeRelabelMap))
 			}
 			insight.Manager.WriteToRemote(&metrics.Metrics{ms})
 			sl.lastScrapeCount = total

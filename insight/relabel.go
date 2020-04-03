@@ -83,7 +83,7 @@ func (m *PodAppEnvMap) SetMap(d map[string]*AppEnv) {
 	count = m.count
 	m.Unlock()
 
-	if count%60 == 0 {
+	if count%20 == 0 {
 		m.cleanCacheCount()
 	}
 }
@@ -98,7 +98,6 @@ func (m *PodAppEnvMap) addCacheCount(pod string) bool {
 	t, ok := m.cache[pod]
 	if ok {
 		if now-t > cacheMissTime {
-			delete(m.cache, pod)
 			return false
 		}
 	} else {
