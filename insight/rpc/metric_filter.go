@@ -89,7 +89,11 @@ func (filter *MetricFilter) reload() error {
 
 	oldVersion := filter.version
 	if ret, err := filter.reloadFromApi(); err != nil {
-		log.Errorf("reloadFromApi error:%s", err.Error())
+		log.Debugf("reloadFromApi error:%s", err.Error())
+		temp := filter.FilterMap()
+		if len(temp) > 0 {
+			return nil
+		}
 	} else {
 		if len(ret) > 0 {
 			whiteList = ret
@@ -102,7 +106,7 @@ func (filter *MetricFilter) reload() error {
 	}
 
 	if ret, err := filter.reloadFromFile(); err != nil {
-		log.Errorf("reloadFromFile error:%s", err.Error())
+		log.Warnf("reloadFromFile error:%s", err.Error())
 	} else {
 		for k, v := range ret {
 			whiteList[k] = v
