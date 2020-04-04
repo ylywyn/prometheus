@@ -1520,12 +1520,12 @@ func labelsKey(lset labels.Labels, podMap map[string]*insight.AppEnv) (string, b
 		} else {
 			cname := lset.Get("container_name")
 			if len(cname) > 0 {
-				if cname != "POD" && !strings.HasPrefix(cname, "filebeat") {
-					cname = "app"
+				if cname == "POD" || strings.HasPrefix(cname, "filebeat") {
+					//cname = "app"
+					b.WriteString("container_name")
+					b.WriteByte('=')
+					b.WriteString(strconv.Quote(cname))
 				}
-				b.WriteString("container_name")
-				b.WriteByte('=')
-				b.WriteString(strconv.Quote(cname))
 			}
 		}
 	} else {
