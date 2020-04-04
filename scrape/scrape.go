@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -1517,9 +1518,15 @@ func labelsKey(lset labels.Labels, podMap map[string]*insight.AppEnv) (string, b
 		if insight.WithOldLabels() {
 			oldLables(lset[1:], &b)
 		} else {
-			b.WriteString("container_name")
-			b.WriteByte('=')
-			b.WriteString(strconv.Quote(lset.Get("container_name")))
+			cname := lset.Get("container_name")
+			if len(cname) > 0 {
+				if cname != "POD" && !strings.HasPrefix(cname, "filebeat") {
+					cname = "app"
+				}
+				b.WriteString("container_name")
+				b.WriteByte('=')
+				b.WriteString(strconv.Quote(cname))
+			}
 		}
 	} else {
 		oldLables(lset[1:], &b)
