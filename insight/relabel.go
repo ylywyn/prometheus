@@ -2,6 +2,7 @@ package insight
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -148,12 +149,9 @@ func PodInfo(lset labels.Labels) *AppEnv {
 
 //返回的bool：是否缺失索引，缺失的话，不建立缓存
 func Relabel(lset labels.Labels, podInfoMap map[string]*AppEnv) ([]byte, bool) {
-	podName := lset.Get(podLabel)
+	podName := getLablePod(lset)
 	if len(podName) == 0 {
-		podName = lset.Get("pod_name")
-		if len(podName) == 0 {
-			return nil, false
-		}
+		return nil, false
 	}
 
 	appEnv, ok := podInfoMap[podName]
@@ -170,4 +168,18 @@ func Relabel(lset labels.Labels, podInfoMap map[string]*AppEnv) ([]byte, bool) {
 
 func WithOldLabels() bool {
 	return atomic.LoadInt32(&withOldLabels) > 0
+}
+
+//优化查找pod
+func getLablePod(ls labels.Labels) string {
+	c := len(ls) - 1
+	for ; c >= 0; c-- {
+		if strings.HasPrefix(ls[c].Name, podLabel) {
+			if ls[c].Name == podLabel || ls[c].Name == "pod_name" {
+				return ls[c].Value
+			}
+		}
+	}
+
+	return ""
 }

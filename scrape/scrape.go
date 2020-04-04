@@ -1513,9 +1513,13 @@ func labelsKey(lset labels.Labels, podMap map[string]*insight.AppEnv) (string, b
 
 	if len(reDefineLbs) > 0 {
 		b.Write(reDefineLbs)
+		b.WriteByte(',')
 		if insight.WithOldLabels() {
-			b.WriteByte(',')
 			oldLables(lset[1:], &b)
+		} else {
+			b.WriteString("container_name")
+			b.WriteByte('=')
+			b.WriteString(strconv.Quote(lset.Get("container_name")))
 		}
 	} else {
 		oldLables(lset[1:], &b)
