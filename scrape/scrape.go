@@ -1112,7 +1112,7 @@ func (sl *scrapeLoop) append(b []byte, contentType string, ts time.Time) (total,
 		sl.cache.iterDone(len(b) > 0)
 
 		if lostIndexCount > 0 {
-			level.Warn(sl.l).Log("msg", "Warn on relabels ", "lost index metrics count", lostIndexCount)
+			level.Warn(sl.l).Log("msg", "Warn on relabels ", "Lost Index Metrics Count", lostIndexCount)
 		}
 	}()
 
@@ -1240,7 +1240,7 @@ loop:
 				seriesAdded++
 			}
 
-			//建立pod-app-env索引
+			//检测是否是KubePodMetrics的Loop
 			if sl.kubePodLabelsStatus == 0 {
 				if hasKubePodMetrics(lset) {
 					sl.kubePodLabelsStatus = 1
@@ -1256,6 +1256,7 @@ loop:
 		}
 
 		if insight.Manager != nil && insight.Manager.SendRemote() && ce != nil {
+			//建立pod-app-env索引
 			if sl.kubePodLabelsStatus == 1 && ce.lset[0].Value == kubePodLabels {
 				podInfo := insight.PodInfo(ce.lset)
 				if podInfo != nil {
