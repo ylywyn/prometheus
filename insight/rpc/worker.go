@@ -170,7 +170,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 		if ok {
 			//if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 			if err := app.AddFast(ce.ref, m.Time, m.Value); err != nil {
-				if perrs.Unwrap(err) == storage.ErrNotFound {
+				if perrs.Is(err, storage.ErrNotFound) {
 					ok = false
 				} else {
 					//log.Errorf("appender.AddFast error:%s", err.Error())
