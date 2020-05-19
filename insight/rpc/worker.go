@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	perrs "github.com/pkg/errors"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/textparse"
 	"github.com/prometheus/prometheus/storage"
@@ -169,7 +170,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 		if ok {
 			//if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 			if err := app.AddFast(ce.ref, m.Time, m.Value); err != nil {
-				if err == storage.ErrNotFound {
+				if perrs.Unwrap(err) == storage.ErrNotFound {
 					ok = false
 				} else {
 					//log.Errorf("appender.AddFast error:%s", err.Error())

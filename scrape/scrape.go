@@ -1258,7 +1258,7 @@ loop:
 
 		if insight.Manager != nil && insight.Manager.SendRemote() && ce != nil {
 			//建立pod-app-env索引
-			if sl.kubePodLabelsStatus == 1 && ce.lset[0].Value == kubePodLabels {
+			if insight.IsRelabel && sl.kubePodLabelsStatus == 1 && ce.lset[0].Value == kubePodLabels {
 				podInfo := insight.PodInfo(ce.lset)
 				if podInfo != nil {
 					writeRelabelMap[podInfo.Pod] = podInfo
@@ -1503,8 +1503,10 @@ func labelsKey(lset labels.Labels, podMap map[string]*insight.AppEnv) (string, b
 	//是否含有pod,pod_name
 	var reDefineLbs []byte
 	var lostIndex bool
-	if lset[0].Value != kubePodLabels {
-		reDefineLbs, lostIndex = insight.Relabel(lset, podMap)
+	if insight.IsRelabel {
+		if lset[0].Value != kubePodLabels {
+			reDefineLbs, lostIndex = insight.Relabel(lset, podMap)
+		}
 	}
 
 	var b bytes.Buffer

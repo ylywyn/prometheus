@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	withOldLabels int32 = 0
+	IsRelabel     bool  = false
+	withOldLabels int32 = 1
 	RelabelMap    *PodAppEnvMap
 )
 
