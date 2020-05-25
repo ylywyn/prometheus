@@ -19,6 +19,12 @@ import (
 	"auto-monitor/common/strconv"
 )
 
+var startTime int64
+
+func init() {
+	startTime = time.Now().Unix()
+}
+
 type Worker struct {
 	sync.Mutex
 	index   int
@@ -173,6 +179,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 	tSec := now.Unix()
 	const diffTime = 10 * 1000
 	for _, m := range ms {
+		//修正时间戳
 		if math.Abs(float64(t-m.Time)) < diffTime {
 			m.Time = t
 		}
@@ -188,6 +195,12 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 		}
 
 		if ok {
+			//防止连续两个时间戳写入, 小于15秒
+			dt := tSec - ce.t
+			if dt < 15 && dt >= 0 {
+				continue
+			}
+
 			if err := app.AddFast(ce.lset, ce.ref, m.Time, m.Value); err != nil {
 				if errors.Is(err, storage.ErrNotFound) {
 					ok = false
@@ -231,6 +244,10 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 				w.seriesCache.addFast(hash, ref, lset, tSec)
 			} else {
 				w.seriesCache.add(m.MetricKey, ref, lset, tSec)
+			}
+
+			if tSec-startTime > 600 {
+				log.Infof("worker: %d add:%d, metric: %s", w.index, added, m.MetricKey)
 			}
 		}
 	}
