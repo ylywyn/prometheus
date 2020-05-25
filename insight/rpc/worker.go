@@ -186,17 +186,18 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 
 		var ok bool
 		var hash uint64
+		var oldt int64
 		var ce *cacheEntry
 		if len(m.MetricKey) > 128 {
 			hash = xxhash.Sum64String(m.MetricKey)
-			ce, ok = w.seriesCache.getFast(hash, tSec)
+			ce, oldt, ok = w.seriesCache.getFast(hash, tSec)
 		} else {
-			ce, ok = w.seriesCache.get(m.MetricKey, tSec)
+			ce, oldt, ok = w.seriesCache.get(m.MetricKey, tSec)
 		}
 
 		if ok {
 			//防止连续两个时间戳写入, 小于15秒
-			dt := tSec - ce.t
+			dt := tSec - oldt
 			if dt < 15 && dt >= 0 {
 				continue
 			}
@@ -246,6 +247,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 				w.seriesCache.add(m.MetricKey, ref, lset, tSec)
 			}
 
+			//
 			if tSec-startTime > 600 {
 				log.Infof("worker: %d add:%d, metric: %s", w.index, added, m.MetricKey)
 			}

@@ -37,26 +37,28 @@ func NewSeriesCache(w *Worker) *SeriesCache {
 	return c
 }
 
-func (c *SeriesCache) get(key string, t int64) (*cacheEntry, bool) {
+func (c *SeriesCache) get(key string, t int64) (*cacheEntry, int64, bool) {
 	c.seriesLock.RLock()
 	e, ok := c.series[key]
 	c.seriesLock.RUnlock()
 	if !ok {
-		return nil, false
+		return nil, 0, false
 	}
+	oldt := e.t
 	e.t = t
-	return e, true
+	return e, oldt, true
 }
 
-func (c *SeriesCache) getFast(key uint64, t int64) (*cacheEntry, bool) {
+func (c *SeriesCache) getFast(key uint64, t int64) (*cacheEntry, int64, bool) {
 	c.fastSeriesLock.RLock()
 	e, ok := c.fastSeries[key]
 	c.fastSeriesLock.RUnlock()
 	if !ok {
-		return nil, false
+		return nil, 0, false
 	}
+	oldt := e.t
 	e.t = t
-	return e, true
+	return e, oldt, true
 }
 
 func (c *SeriesCache) add(key string, ref uint64, lset labels.Labels, t int64) {
