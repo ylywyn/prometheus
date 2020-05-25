@@ -30,6 +30,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -75,6 +76,8 @@ var (
 
 	defaultRetentionString   = "15d"
 	defaultRetentionDuration model.Duration
+
+	insightStop int32
 )
 
 func init() {
@@ -88,6 +91,7 @@ func init() {
 }
 
 func main() {
+	fmt.Println("2020-05-25")
 	if os.Getenv("DEBUG") != "" {
 		runtime.SetBlockProfileRate(20)
 		runtime.SetMutexProfileFraction(20)
@@ -538,6 +542,8 @@ func main() {
 			func(err error) {
 				level.Info(logger).Log("msg", "Stopping scrape discovery manager...")
 				cancelScrape()
+				insight.RpcManagerStop()
+				atomic.StoreInt32(&insightStop, 1)
 			},
 		)
 	}
@@ -552,6 +558,8 @@ func main() {
 			func(err error) {
 				level.Info(logger).Log("msg", "Stopping notify discovery manager...")
 				cancelNotify()
+				insight.RpcManagerStop()
+				atomic.StoreInt32(&insightStop, 1)
 			},
 		)
 	}
@@ -574,6 +582,8 @@ func main() {
 				// so that it doesn't try to write samples to a closed storage.
 				level.Info(logger).Log("msg", "Stopping scrape manager...")
 				scrapeManager.Stop()
+				insight.RpcManagerStop()
+				atomic.StoreInt32(&insightStop, 1)
 			},
 		)
 	}
@@ -706,6 +716,8 @@ func main() {
 					level.Error(logger).Log("msg", "Error stopping storage", "err", err)
 				}
 				close(cancel)
+				insight.RpcManagerStop()
+				atomic.StoreInt32(&insightStop, 1)
 			},
 		)
 	}
@@ -720,6 +732,8 @@ func main() {
 			},
 			func(err error) {
 				cancelWeb()
+				insight.RpcManagerStop()
+				atomic.StoreInt32(&insightStop, 1)
 			},
 		)
 	}
@@ -749,10 +763,17 @@ func main() {
 		cancel := make(chan struct{})
 		g.Add(
 			func() error {
+				if atomic.LoadInt32(&insightStop) == 1 {
+					return nil
+				}
 
 				insight.SetLog(cfg.promlogConfig.Level.String())
 
 				<-reloadReady.C
+				if atomic.LoadInt32(&insightStop) == 1 {
+					return nil
+				}
+
 				if err := insight.RpcManagerRun(fanoutStorage); err != nil {
 					level.Error(logger).Log("insight.RpcManagerRun err", err)
 					return err

@@ -7,6 +7,7 @@
 package netutil // import "golang.org/x/net/netutil"
 
 import (
+	"fmt"
 	"net"
 	"sync"
 )
@@ -32,6 +33,11 @@ type limitListener struct {
 // accquired, false if the listener is closed and the semaphore is not
 // acquired.
 func (l *limitListener) acquire() bool {
+	count := cap(l.sem) - len(l.sem)
+	if count < 5 {
+		fmt.Printf("====http request will limit: %d ====\r\n", count)
+	}
+
 	select {
 	case <-l.done:
 		return false
