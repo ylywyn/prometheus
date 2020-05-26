@@ -19,11 +19,30 @@ import (
 	"auto-monitor/common/strconv"
 )
 
-var startTime int64
-var dataInterval int64
+var (
+	startTime    int64
+	dataInterval int64
+	correctTime  bool
+)
 
 func init() {
+	correctTime = true
 	startTime = time.Now().Unix()
+}
+
+func SetDataFilterInterval(v int64) {
+	dataInterval = v
+	log.Infof("data filter interval :%d", dataInterval)
+}
+
+func SetCorrectTime(v int64) {
+	if v > 0 {
+		correctTime = true
+	} else {
+		correctTime = false
+	}
+
+	log.Infof("correctTime :%v", correctTime)
 }
 
 type Worker struct {
@@ -181,8 +200,10 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 	const diffTime = 10 * 1000
 	for _, m := range ms {
 		//修正时间戳
-		if math.Abs(float64(t-m.Time)) < diffTime {
-			m.Time = t
+		if correctTime {
+			if math.Abs(float64(t-m.Time)) < diffTime {
+				m.Time = t
+			}
 		}
 
 		var ok bool
@@ -265,9 +286,4 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 	}
 
 	return added, errRet
-}
-
-func SetDataFilterInterval(v int64) {
-	dataInterval = v
-	log.Infof("data filter interval :%d", dataInterval)
 }

@@ -21,6 +21,7 @@ type InsightConfig struct {
 	WhiteListFile       string
 
 	//
+	CorrectTime  int64
 	DataInterval int64
 }
 
@@ -34,6 +35,7 @@ func RpcManagerRun(appender rpc.Appendable) error {
 	}
 
 	rpc.SetDataFilterInterval(Config.DataInterval)
+	rpc.SetCorrectTime(Config.CorrectTime)
 
 	var err error
 	Manager, err = rpc.NewManager(Config.RpcListenAddr, Config.RemoteRpcServerAddr, Config.Datasource, appender)

@@ -160,6 +160,7 @@ func main() {
 		StringVar(&insight.Config.WhiteListFile)
 
 	a.Flag("insight.rpc-filter-interval", "rpc-filter-interval.").Int64Var(&insight.Config.DataInterval)
+	a.Flag("insight.rpc-correct-time", "rpc-correct-time.").Default("1").Int64Var(&insight.Config.CorrectTime)
 
 	a.Flag("web.read-timeout",
 		"Maximum duration before timing out read of the request, and closing idle connections.").
