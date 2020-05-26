@@ -159,6 +159,8 @@ func main() {
 	a.Flag("insight.rpc-whitelist-file", "keep some metrics in the file.").Default("whitelist.conf").
 		StringVar(&insight.Config.WhiteListFile)
 
+	a.Flag("insight.rpc-filter-interval", "rpc-filter-interval.").Int64Var(&insight.Config.DataInterval)
+
 	a.Flag("web.read-timeout",
 		"Maximum duration before timing out read of the request, and closing idle connections.").
 		Default("5m").SetValue(&cfg.webTimeout)

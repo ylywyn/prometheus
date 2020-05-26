@@ -19,6 +19,9 @@ type InsightConfig struct {
 	RemoteRpcServerAddr string
 	Datasource          string
 	WhiteListFile       string
+
+	//
+	DataInterval int64
 }
 
 func SetLog(level string) {
@@ -26,6 +29,12 @@ func SetLog(level string) {
 }
 
 func RpcManagerRun(appender rpc.Appendable) error {
+	if Config.DataInterval == 0 {
+		Config.DataInterval = 25
+	}
+
+	rpc.SetDataFilterInterval(Config.DataInterval)
+
 	var err error
 	Manager, err = rpc.NewManager(Config.RpcListenAddr, Config.RemoteRpcServerAddr, Config.Datasource, appender)
 	if err != nil {

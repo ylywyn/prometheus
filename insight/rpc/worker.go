@@ -20,6 +20,7 @@ import (
 )
 
 var startTime int64
+var dataInterval int64
 
 func init() {
 	startTime = time.Now().Unix()
@@ -196,9 +197,9 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 		}
 
 		if ok {
-			//防止连续两个时间戳写入, 小于15秒
+			//防止连续两个时间戳写入, 小于dataInterval秒
 			dt := tSec - oldt
-			if dt < 15 && dt >= 0 {
+			if dt < dataInterval && dt >= 0 {
 				continue
 			}
 
@@ -264,4 +265,9 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 	}
 
 	return added, errRet
+}
+
+func SetDataFilterInterval(v int64) {
+	dataInterval = v
+	log.Infof("data filter interval :%d", dataInterval)
 }
