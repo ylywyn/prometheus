@@ -271,7 +271,7 @@ func (w *Worker) storage(ms []*metrics.Metric, app storage.Appender) (int, error
 
 			//
 			if tSec-startTime > 600 {
-				log.Infof("worker: %d add:%d, metric: %s", w.index, added, m.MetricKey)
+				log.Debugf("worker: %d add:%d, metric: %s", w.index, added, m.MetricKey)
 			}
 		}
 	}
